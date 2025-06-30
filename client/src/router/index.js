@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Home from '../views/Home.vue';
-import Trends from '../views/Trends.vue';
-import LiveTrends from '../views/LiveTrends.vue';
 import ViralNewsV2 from '../views/ViralNewsV2.vue';
 
 const router = createRouter({
@@ -13,18 +11,8 @@ const router = createRouter({
       component: Home,
     },
     {
-      path: '/trends',
-      name: 'Trends',
-      component: Trends,
-    },
-    {
-      path: '/live-trends',
-      name: 'LiveTrends',
-      component: LiveTrends,
-    },
-    {
-      path: '/viral-news-v2',
-      name: 'ViralNewsV2',
+      path: '/viral-news',
+      name: 'ViralNews',
       component: ViralNewsV2,
     },
   ],

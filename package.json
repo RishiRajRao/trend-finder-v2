@@ -23,6 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "@vercel/analytics": "^1.5.0",
-    "axios": "^1.10.0"
+    "axios": "^1.10.0",
+    "rettiwt-api": "^4.2.0"
   }
 }
