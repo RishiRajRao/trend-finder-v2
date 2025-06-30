@@ -1,0 +1,144 @@
+# ===============================================
+# Node.js Dependencies
+# ===============================================
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===============================================
+# Environment Variables & Configuration
+# ===============================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+server/.env
+client/.env
+
+# ===============================================
+# Build Outputs
+# ===============================================
+dist/
+build/
+*/dist/
+*/build/
+client/dist/
+server/dist/
+.vercel
+.output/
+
+# ===============================================
+# Logs
+# ===============================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===============================================
+# Runtime & Cache
+# ===============================================
+.npm
+.eslintcache
+.cache/
+.parcel-cache
+.nuxt
+.next
+.vite
+vite.config.js.timestamp-*
+
+# ===============================================
+# Coverage & Testing
+# ===============================================
+coverage/
+*.lcov
+.nyc_output
+cypress/videos/
+cypress/screenshots/
+
+# ===============================================
+# IDE & Editor Files
+# ===============================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*~
+
+# ===============================================
+# OS Generated Files
+# ===============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===============================================
+# Temporary Files
+# ===============================================
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+
+# ===============================================
+# TypeScript
+# ===============================================
+*.tsbuildinfo
+
+# ===============================================
+# Package Lock Files (choose one strategy)
+# ===============================================
+# Uncomment the strategy you prefer:
+
+# Strategy 1: Keep all lock files (RECOMMENDED)
+# (No additional entries needed)
+
+# Strategy 2: Ignore lock files (NOT RECOMMENDED)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# ===============================================
+# Vue.js Specific
+# ===============================================
+.vite-inspect
+
+# ===============================================
+# API Keys & Sensitive Data
+# ===============================================
+# Note: API keys should be in .env files (already ignored above)
+config/keys.js
+config/prod_keys.js
+
+# ===============================================
+# Database
+# ===============================================
+*.sqlite
+*.db
+
+# ===============================================
+# Misc
+# ===============================================
+.npm
+.yarn
+yarn-error.log 
