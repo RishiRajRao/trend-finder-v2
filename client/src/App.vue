@@ -7,26 +7,10 @@ export default {
 <template>
   <div id="app">
     <nav class="nav-gradient text-white py-4 shadow-lg">
-      <div class="max-w-6xl mx-auto px-8 flex justify-between items-center">
-        <h1 class="text-2xl font-bold">📈 Viral News Finder</h1>
-        <div class="flex gap-8">
-          <RouterLink
-            to="/"
-            class="text-white no-underline font-medium px-4 py-2 rounded transition-colors duration-300 hover:bg-white hover:bg-opacity-20"
-            :class="{ 'bg-white bg-opacity-20': $route.path === '/' }"
-          >
-            🏠 Home
-          </RouterLink>
-          <RouterLink
-            to="/viral-news"
-            class="text-white no-underline font-medium px-4 py-2 rounded transition-colors duration-300 hover:bg-white hover:bg-opacity-20"
-            :class="{
-              'bg-white bg-opacity-20': $route.path === '/viral-news',
-            }"
-          >
-            🔥 Viral News Detection
-          </RouterLink>
-        </div>
+      <div class="max-w-6xl mx-auto px-8 flex justify-center items-center">
+        <h1 class="text-2xl font-bold">
+          🔥 Viral News Finder - Real-time Detection
+        </h1>
       </div>
     </nav>
 

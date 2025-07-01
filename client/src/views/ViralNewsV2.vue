@@ -104,118 +104,159 @@
           </div>
 
           <div class="cross-platform-evidence">
-            <!-- Twitter Evidence -->
-            <div class="platform twitter">
-              <div class="platform-header">
-                <h4>🐦 Twitter Activity</h4>
-                <a
-                  :href="newsItem.viralMetrics.twitter.searchUrl"
-                  target="_blank"
-                  rel="noopener"
-                  class="search-link"
-                >
-                  🔍 Search Twitter
-                </a>
-              </div>
-              <div class="platform-stats">
-                <span>{{ newsItem.viralMetrics.twitter.count }} tweets</span>
-                <span
-                  >{{
-                    newsItem.viralMetrics.twitter.totalImpressions.toLocaleString()
-                  }}
-                  impressions</span
-                >
-                <span
-                  >{{ newsItem.viralMetrics.twitter.verifiedAccounts }} verified
-                  accounts</span
-                >
-              </div>
-              <div class="disclaimer">
-                {{ newsItem.viralMetrics.twitter.disclaimer }}
-              </div>
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+              <button
+                @click="setActiveTab(newsItem, 'twitter')"
+                :class="[
+                  'tab-button',
+                  { active: newsItem.activeTab === 'twitter' },
+                ]"
+              >
+                🐦 Twitter ({{ newsItem.viralMetrics.twitter.count }})
+              </button>
+              <button
+                @click="setActiveTab(newsItem, 'reddit')"
+                :class="[
+                  'tab-button',
+                  { active: newsItem.activeTab === 'reddit' },
+                ]"
+              >
+                🔴 Reddit ({{ newsItem.viralMetrics.reddit.count }})
+              </button>
+            </div>
 
-              <!-- Twitter Posts Preview -->
-              <div class="posts-preview">
-                <div
-                  v-for="tweet in newsItem.viralMetrics.twitter.tweets.slice(
-                    0,
-                    3
-                  )"
-                  :key="tweet.id"
-                  class="tweet-preview"
-                >
-                  <div class="tweet-header">
-                    <span class="username">@{{ tweet.username }}</span>
-                    <span v-if="tweet.isVerified" class="verified">✓</span>
-                    <span class="time">{{
-                      tweet.timeAgo || getTimeAgo(tweet.created_at)
-                    }}</span>
-                  </div>
-                  <div class="tweet-text">{{ tweet.text }}</div>
-                  <div class="tweet-stats">
-                    <span>💬 {{ tweet.replies }}</span>
-                    <span>🔄 {{ tweet.retweets }}</span>
-                    <span>❤️ {{ tweet.likes }}</span>
-                    <span>👁️ {{ tweet.impressions }}</span>
+            <!-- Tab Content -->
+            <div class="tab-content">
+              <!-- Twitter Tab -->
+              <div
+                v-if="newsItem.activeTab === 'twitter'"
+                class="platform twitter"
+              >
+                <div class="platform-header">
+                  <h4>🐦 Twitter Activity</h4>
+                  <a
+                    :href="newsItem.viralMetrics.twitter.searchUrl"
+                    target="_blank"
+                    rel="noopener"
+                    class="search-link"
+                  >
+                    🔍 Search Twitter
+                  </a>
+                </div>
+                <div class="platform-stats">
+                  <span>{{ newsItem.viralMetrics.twitter.count }} tweets</span>
+                  <span
+                    >{{
+                      newsItem.viralMetrics.twitter.totalImpressions.toLocaleString()
+                    }}
+                    impressions</span
+                  >
+                  <span
+                    >{{
+                      newsItem.viralMetrics.twitter.verifiedAccounts
+                    }}
+                    verified accounts</span
+                  >
+                </div>
+                <div class="disclaimer">
+                  {{ newsItem.viralMetrics.twitter.disclaimer }}
+                </div>
+
+                <!-- All Twitter Posts -->
+                <div class="posts-preview">
+                  <div
+                    v-for="tweet in newsItem.viralMetrics.twitter.tweets"
+                    :key="tweet.id"
+                    class="tweet-preview"
+                  >
+                    <div class="tweet-header">
+                      <span class="username">@{{ tweet.username }}</span>
+                      <span v-if="tweet.isVerified" class="verified">✓</span>
+                      <span class="time">{{
+                        tweet.timeAgo || getTimeAgo(tweet.created_at)
+                      }}</span>
+                    </div>
+                    <div class="tweet-text">{{ tweet.text }}</div>
+                    <div class="tweet-stats">
+                      <span>💬 {{ tweet.replies }}</span>
+                      <span>🔄 {{ tweet.retweets }}</span>
+                      <span>❤️ {{ tweet.likes }}</span>
+                      <span>👁️ {{ tweet.impressions }}</span>
+                      <span class="engagement-rate"
+                        >📊 {{ tweet.engagementRate }}</span
+                      >
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Reddit Evidence -->
-            <div class="platform reddit">
-              <div class="platform-header">
-                <h4>🔴 Reddit Discussion</h4>
-                <a
-                  :href="newsItem.viralMetrics.reddit.searchUrl"
-                  target="_blank"
-                  rel="noopener"
-                  class="search-link"
-                >
-                  🔍 Search Reddit
-                </a>
-              </div>
-              <div class="platform-stats">
-                <span>{{ newsItem.viralMetrics.reddit.count }} posts</span>
-                <span
-                  >{{ newsItem.viralMetrics.reddit.totalUpvotes }} total
-                  upvotes</span
-                >
-                <span
-                  >{{
-                    newsItem.viralMetrics.reddit.totalComments
-                  }}
-                  comments</span
-                >
-              </div>
-              <div class="disclaimer">
-                {{ newsItem.viralMetrics.reddit.disclaimer }}
-              </div>
+              <!-- Reddit Tab -->
+              <div
+                v-if="newsItem.activeTab === 'reddit'"
+                class="platform reddit"
+              >
+                <div class="platform-header">
+                  <h4>🔴 Reddit Discussion</h4>
+                  <a
+                    :href="newsItem.viralMetrics.reddit.searchUrl"
+                    target="_blank"
+                    rel="noopener"
+                    class="search-link"
+                  >
+                    🔍 Search Reddit
+                  </a>
+                </div>
+                <div class="platform-stats">
+                  <span>{{ newsItem.viralMetrics.reddit.count }} posts</span>
+                  <span
+                    >{{ newsItem.viralMetrics.reddit.totalUpvotes }} total
+                    upvotes</span
+                  >
+                  <span
+                    >{{
+                      newsItem.viralMetrics.reddit.totalComments
+                    }}
+                    comments</span
+                  >
+                  <span
+                    v-if="newsItem.viralMetrics.reddit.subredditsFound?.length"
+                  >
+                    from
+                    {{ newsItem.viralMetrics.reddit.subredditsFound.length }}
+                    subreddits
+                  </span>
+                </div>
+                <div class="disclaimer">
+                  {{ newsItem.viralMetrics.reddit.disclaimer }}
+                </div>
 
-              <!-- Reddit Posts Preview -->
-              <div class="posts-preview">
-                <div
-                  v-for="post in newsItem.viralMetrics.reddit.posts.slice(0, 3)"
-                  :key="post.id"
-                  class="reddit-preview"
-                >
-                  <div class="reddit-header">
-                    <span class="subreddit">r/{{ post.subreddit }}</span>
-                    <span class="verified">✓ Real</span>
-                    <span class="time">{{ post.timeAgo }}</span>
-                  </div>
-                  <div class="reddit-title">
-                    <a :href="post.url" target="_blank" rel="noopener">
-                      {{ post.title }}
-                    </a>
-                  </div>
-                  <div class="reddit-stats">
-                    <span>⬆️ {{ post.upvotes }}</span>
-                    <span>💬 {{ post.comments }}</span>
-                    <span
-                      >📊 {{ (post.upvoteRatio * 100).toFixed(0) }}%
-                      upvoted</span
-                    >
+                <!-- All Reddit Posts -->
+                <div class="posts-preview">
+                  <div
+                    v-for="post in newsItem.viralMetrics.reddit.posts"
+                    :key="post.id"
+                    class="reddit-preview"
+                  >
+                    <div class="reddit-header">
+                      <span class="subreddit">r/{{ post.subreddit }}</span>
+                      <span class="verified">✓ Real</span>
+                      <span class="time">{{ post.timeAgo }}</span>
+                    </div>
+                    <div class="reddit-title">
+                      <a :href="post.url" target="_blank" rel="noopener">
+                        {{ post.title }}
+                      </a>
+                    </div>
+                    <div class="reddit-stats">
+                      <span>⬆️ {{ post.upvotes }}</span>
+                      <span>⬇️ {{ post.downvotes || 0 }}</span>
+                      <span>💬 {{ post.comments }}</span>
+                      <span
+                        >📊 {{ (post.upvoteRatio * 100).toFixed(0) }}%
+                        upvoted</span
+                      >
+                    </div>
                   </div>
                 </div>
               </div>
@@ -230,70 +271,6 @@
             >
               {{ keyword }}
             </span>
-          </div>
-
-          <div class="view-more-container">
-            <button @click="toggleDetailedView(newsItem)" class="view-more-btn">
-              <span v-if="newsItem.showDetailed">📖 Show Less</span>
-              <span v-else>📊 View All Evidence</span>
-            </button>
-          </div>
-
-          <!-- Detailed Evidence (Expandable) -->
-          <div v-if="newsItem.showDetailed" class="detailed-evidence">
-            <div class="detailed-section">
-              <h5>🐦 All Twitter Activity</h5>
-              <div class="all-tweets">
-                <div
-                  v-for="tweet in newsItem.viralMetrics.twitter.tweets"
-                  :key="tweet.id"
-                  class="detailed-tweet"
-                >
-                  <div class="tweet-header">
-                    <span class="username">@{{ tweet.username }}</span>
-                    <span v-if="tweet.isVerified" class="verified">✓</span>
-                    <span class="engagement">{{ tweet.engagementRate }}</span>
-                  </div>
-                  <div class="tweet-text">{{ tweet.text }}</div>
-                  <div class="tweet-meta">
-                    <span>💬 {{ tweet.replies }}</span>
-                    <span>🔄 {{ tweet.retweets }}</span>
-                    <span>❤️ {{ tweet.likes }}</span>
-                    <span>👁️ {{ tweet.impressions }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="detailed-section">
-              <h5>🔴 All Reddit Posts</h5>
-              <div class="all-reddit">
-                <div
-                  v-for="post in newsItem.viralMetrics.reddit.posts"
-                  :key="post.id"
-                  class="detailed-reddit"
-                >
-                  <div class="reddit-header">
-                    <span class="subreddit">r/{{ post.subreddit }}</span>
-                    <span class="verified">✓ Verified Real</span>
-                  </div>
-                  <div class="reddit-title">
-                    <a :href="post.url" target="_blank" rel="noopener">
-                      {{ post.title }}
-                    </a>
-                  </div>
-                  <div class="reddit-engagement">
-                    <span>⬆️ {{ post.upvotes }} upvotes</span>
-                    <span>⬇️ {{ post.downvotes }} downvotes</span>
-                    <span>💬 {{ post.comments }} comments</span>
-                    <span
-                      >📊 {{ (post.upvoteRatio * 100).toFixed(0) }}%
-                      positive</span
-                    >
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -354,7 +331,7 @@ export default {
           this.totalAnalyzed = response.data.summary.totalNewsAnalyzed;
           this.viralNews = response.data.data.map((item) => ({
             ...item,
-            showDetailed: false, // Add toggle state for each item
+            activeTab: 'twitter', // Default to Twitter tab
           }));
         }
       } catch (error) {
@@ -369,8 +346,8 @@ export default {
       return new Date(timestamp).toLocaleString();
     },
 
-    toggleDetailedView(newsItem) {
-      newsItem.showDetailed = !newsItem.showDetailed;
+    setActiveTab(newsItem, tab) {
+      newsItem.activeTab = tab;
     },
 
     getTimeAgo(created_at) {
@@ -460,9 +437,46 @@ export default {
   font-style: italic;
 }
 
+/* Tab Navigation Styles */
+.tab-navigation {
+  display: flex;
+  border-bottom: 2px solid #e9ecef;
+  margin-bottom: 15px;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.tab-button.active {
+  background: white;
+  color: #007bff;
+  border-bottom-color: #007bff;
+}
+
+.tab-content {
+  min-height: 200px;
+}
+
 /* Tweet and Reddit preview styles */
 .posts-preview {
   margin-top: 12px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .tweet-preview,
@@ -527,6 +541,15 @@ export default {
   font-size: 0.8rem;
   color: #6c757d;
   margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.engagement-rate {
+  background: #e7f3ff;
+  color: #0066cc;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 600;
 }
 
 /* View more / detailed evidence styles */
