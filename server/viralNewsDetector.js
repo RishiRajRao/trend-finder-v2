@@ -13,13 +13,18 @@ class ViralNewsDetector {
     // Initialize free Twitter client (no API key needed)
     this.twitterClient = new Rettiwt();
 
-    // Viral thresholds for V2
+    // Enhanced Viral thresholds for V2 (more realistic for actual social media)
     this.viralThresholds = {
-      minTweets: 100,
-      minTweetImpressions: 100,
-      minRedditPosts: 20,
+      minTweets: 10, // More realistic threshold
+      minTweetImpressions: 500, // Higher quality threshold
+      minRedditPosts: 3, // More achievable threshold
       goodUpvoteRatio: 0.7, // 70% upvote ratio considered good
-      minRedditEngagement: 10, // minimum comments for engagement
+      minRedditEngagement: 5, // minimum comments for engagement
+
+      // New thresholds for enhanced algorithm
+      highEngagementThreshold: 0.05, // 5% engagement rate is excellent
+      viralVelocityThreshold: 10, // Posts per hour for trending
+      crossPlatformThreshold: 2, // Both platforms needed for bonus
     };
 
     // Keywords for better cross-platform matching
@@ -795,33 +800,253 @@ class ViralNewsDetector {
   }
 
   /**
-   * Calculate viral score based on cross-platform metrics
+   * Calculate viral score based on cross-platform metrics with advanced heuristics
+   * Enhanced algorithm with logarithmic scaling, time decay, and cross-platform amplification
    */
   calculateViralScore(twitterData, redditData) {
     let score = 0;
 
-    // Twitter contribution (60% of score)
-    const twitterScore = Math.min(
-      100,
-      (twitterData.count / this.viralThresholds.minTweets) * 60
-    );
-    const impressionBonus = Math.min(
-      20,
-      (twitterData.averageImpressions /
-        this.viralThresholds.minTweetImpressions) *
-        20
-    );
+    // ==> 1. TWITTER ANALYSIS (50% of total score)
+    const twitterScore = this.calculateTwitterViralScore(twitterData);
 
-    // Reddit contribution (40% of score)
-    const redditScore = Math.min(
-      40,
-      (redditData.goodEngagementCount / this.viralThresholds.minRedditPosts) *
-        40
+    // ==> 2. REDDIT ANALYSIS (30% of total score)
+    const redditScore = this.calculateRedditViralScore(redditData);
+
+    // ==> 3. CROSS-PLATFORM AMPLIFICATION BONUS (20% of total score)
+    const crossPlatformBonus = this.calculateCrossPlatformBonus(
+      twitterData,
+      redditData
     );
 
-    score = twitterScore + impressionBonus + redditScore;
+    // ==> 4. TIME DECAY FACTOR (multiply final score)
+    const timeDecayFactor = this.calculateTimeDecay(twitterData, redditData);
 
-    return Math.round(score);
+    // ==> 5. CONTENT TYPE MULTIPLIER
+    const contentTypeMultiplier = this.getContentTypeMultiplier(twitterData);
+
+    score =
+      (twitterScore + redditScore + crossPlatformBonus) *
+      timeDecayFactor *
+      contentTypeMultiplier;
+
+    return Math.round(Math.min(score, 100)); // Cap at 100
+  }
+
+  /**
+   * Calculate Twitter viral score with advanced metrics
+   */
+  calculateTwitterViralScore(twitterData) {
+    if (!twitterData || twitterData.count === 0) return 0;
+
+    let twitterScore = 0;
+
+    // Base score using logarithmic scaling (more realistic for viral growth)
+    const logBase = Math.log10(Math.max(twitterData.count, 1) + 1) * 15; // 0-30 points
+    twitterScore += logBase;
+
+    // Impression quality score (logarithmic)
+    const avgImpressions = twitterData.averageImpressions || 0;
+    const impressionScore = Math.log10(Math.max(avgImpressions, 1) + 1) * 8; // 0-20 points
+    twitterScore += impressionScore;
+
+    // Engagement quality bonus (retweets > likes > replies)
+    const engagementQuality = this.calculateEngagementQuality(twitterData);
+    twitterScore += engagementQuality; // 0-15 points
+
+    // Verified account bonus (credibility multiplier)
+    const verifiedRatio =
+      (twitterData.verifiedAccounts || 0) / Math.max(twitterData.count, 1);
+    const verifiedBonus = verifiedRatio * 10; // 0-10 points
+    twitterScore += verifiedBonus;
+
+    return Math.min(twitterScore, 50); // Max 50 points from Twitter
+  }
+
+  /**
+   * Calculate Reddit viral score with community dynamics
+   */
+  calculateRedditViralScore(redditData) {
+    if (!redditData || redditData.count === 0) return 0;
+
+    let redditScore = 0;
+
+    // Base score using logarithmic scaling
+    const logBase = Math.log10(Math.max(redditData.count, 1) + 1) * 8; // 0-16 points
+    redditScore += logBase;
+
+    // Upvote quality (logarithmic scale for viral growth)
+    const totalUpvotes = redditData.totalUpvotes || 0;
+    const upvoteScore = Math.log10(Math.max(totalUpvotes, 1) + 1) * 6; // 0-15 points
+    redditScore += upvoteScore;
+
+    // Community engagement depth
+    const avgCommentsPerPost =
+      redditData.count > 0
+        ? (redditData.totalComments || 0) / redditData.count
+        : 0;
+    const engagementDepth = Math.min(avgCommentsPerPost / 10, 1) * 8; // 0-8 points
+    redditScore += engagementDepth;
+
+    // Subreddit diversity bonus (viral content spreads across communities)
+    const subredditDiversity =
+      Math.min(redditData.subredditsFound?.length || 1, 5) * 1.5; // 0-7.5 points
+    redditScore += subredditDiversity;
+
+    return Math.min(redditScore, 30); // Max 30 points from Reddit
+  }
+
+  /**
+   * Calculate cross-platform amplification bonus
+   */
+  calculateCrossPlatformBonus(twitterData, redditData) {
+    const hasTwitter = twitterData.count > 0;
+    const hasReddit = redditData.count > 0;
+
+    if (!hasTwitter || !hasReddit) return 0; // No bonus if only one platform
+
+    // Correlation bonus: Both platforms discussing = higher viral potential
+    const twitterNormalized = Math.min(twitterData.count / 20, 1); // Normalize to 0-1
+    const redditNormalized = Math.min(redditData.count / 3, 1); // Normalize to 0-1
+
+    // Multiplicative bonus when both platforms are active
+    const correlationBonus = twitterNormalized * redditNormalized * 15; // 0-15 points
+
+    // Platform reach amplification
+    const totalReach =
+      (twitterData.totalImpressions || 0) + (redditData.totalUpvotes || 0) * 50;
+    const reachBonus = Math.min(Math.log10(totalReach + 1) * 2, 10); // 0-10 points
+
+    return correlationBonus + reachBonus; // Max ~20 points
+  }
+
+  /**
+   * Calculate engagement quality from Twitter metrics
+   */
+  calculateEngagementQuality(twitterData) {
+    if (!twitterData.tweets || twitterData.tweets.length === 0) return 0;
+
+    let qualityScore = 0;
+    const tweets = twitterData.tweets;
+
+    // Calculate average engagement rates
+    let totalEngagementRate = 0;
+    let retweetRatio = 0;
+    let validTweets = 0;
+
+    tweets.forEach((tweet) => {
+      if (tweet.impressions > 0) {
+        const engagementRate =
+          (tweet.retweets + tweet.likes + tweet.replies) / tweet.impressions;
+        totalEngagementRate += engagementRate;
+
+        // Retweets are stronger viral indicators than likes
+        retweetRatio +=
+          tweet.retweets / Math.max(tweet.likes + tweet.retweets, 1);
+        validTweets++;
+      }
+    });
+
+    if (validTweets > 0) {
+      const avgEngagement = totalEngagementRate / validTweets;
+      const avgRetweetRatio = retweetRatio / validTweets;
+
+      // Higher engagement rate = more viral
+      qualityScore += Math.min(avgEngagement * 500, 10); // 0-10 points
+
+      // Higher retweet ratio = more viral spread
+      qualityScore += avgRetweetRatio * 5; // 0-5 points
+    }
+
+    return qualityScore;
+  }
+
+  /**
+   * Calculate time decay factor (recent content gets higher scores)
+   */
+  calculateTimeDecay(twitterData, redditData) {
+    const now = new Date();
+    let avgAge = 0;
+    let totalPosts = 0;
+
+    // Calculate average age from Twitter posts
+    if (twitterData.tweets) {
+      twitterData.tweets.forEach((tweet) => {
+        if (tweet.created_at) {
+          const postAge = (now - new Date(tweet.created_at)) / (1000 * 60 * 60); // Hours
+          avgAge += postAge;
+          totalPosts++;
+        }
+      });
+    }
+
+    // Calculate average age from Reddit posts
+    if (redditData.posts) {
+      redditData.posts.forEach((post) => {
+        if (post.created) {
+          const postAge = (now - new Date(post.created)) / (1000 * 60 * 60); // Hours
+          avgAge += postAge;
+          totalPosts++;
+        }
+      });
+    }
+
+    if (totalPosts === 0) return 1.0;
+
+    avgAge = avgAge / totalPosts;
+
+    // Time decay: Recent content (0-6 hrs) = 1.2x, 6-24 hrs = 1.0x, 24+ hrs = 0.8x
+    if (avgAge <= 6) return 1.2; // Very recent bonus
+    else if (avgAge <= 24) return 1.0; // Normal scoring
+    else if (avgAge <= 72) return 0.8; // Slight penalty
+    else return 0.6; // Older content penalty
+  }
+
+  /**
+   * Get content type multiplier based on content characteristics
+   */
+  getContentTypeMultiplier(twitterData) {
+    if (!twitterData.tweets || twitterData.tweets.length === 0) return 1.0;
+
+    let hasBreaking = false;
+    let hasControversy = false;
+    let hasCelebrity = false;
+
+    // Analyze tweet content for viral indicators
+    twitterData.tweets.forEach((tweet) => {
+      const text = (tweet.text || '').toLowerCase();
+
+      if (
+        text.includes('breaking') ||
+        text.includes('urgent') ||
+        text.includes('alert')
+      ) {
+        hasBreaking = true;
+      }
+
+      if (
+        text.includes('scandal') ||
+        text.includes('controversy') ||
+        text.includes('exposed')
+      ) {
+        hasControversy = true;
+      }
+
+      if (
+        text.includes('bollywood') ||
+        text.includes('celebrity') ||
+        text.includes('cricket')
+      ) {
+        hasCelebrity = true;
+      }
+    });
+
+    // Apply multipliers
+    let multiplier = 1.0;
+    if (hasBreaking) multiplier += 0.3; // Breaking news bonus
+    if (hasControversy) multiplier += 0.2; // Controversy bonus
+    if (hasCelebrity) multiplier += 0.1; // Celebrity bonus
+
+    return Math.min(multiplier, 1.6); // Cap at 1.6x multiplier
   }
 
   /**

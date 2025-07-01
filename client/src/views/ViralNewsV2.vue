@@ -8,45 +8,15 @@
     </div>
 
     <div class="controls">
-      <div class="threshold-controls">
-        <h3>🎚️ Viral Detection Thresholds</h3>
-        <div class="threshold-grid">
-          <div class="threshold-item">
-            <label>Min Tweets</label>
-            <input
-              v-model.number="thresholds.minTweets"
-              type="number"
-              min="1"
-              max="500"
-            />
-          </div>
-          <div class="threshold-item">
-            <label>Min Impressions</label>
-            <input
-              v-model.number="thresholds.minImpressions"
-              type="number"
-              min="1"
-              max="1000"
-            />
-          </div>
-          <div class="threshold-item">
-            <label>Min Reddit Posts</label>
-            <input
-              v-model.number="thresholds.minRedditPosts"
-              type="number"
-              min="1"
-              max="100"
-            />
-          </div>
-          <div class="threshold-item">
-            <label>Min Upvote Ratio</label>
-            <input
-              v-model.number="thresholds.minUpvoteRatio"
-              type="number"
-              min="0"
-              max="1"
-              step="0.1"
-            />
+      <div class="algorithm-info">
+        <div class="algorithm-badge">
+          <span class="badge-icon">🧠</span>
+          <div class="badge-content">
+            <h3>AI-Powered Viral Detection</h3>
+            <p>
+              Advanced algorithm with logarithmic scaling, cross-platform
+              validation, and time-decay factors
+            </p>
           </div>
         </div>
       </div>
@@ -302,12 +272,6 @@ export default {
       hasSearched: false,
       viralNews: [],
       totalAnalyzed: 0,
-      thresholds: {
-        minTweets: 10,
-        minImpressions: 150,
-        minRedditPosts: 1,
-        minUpvoteRatio: 0.3,
-      },
     };
   },
   computed: {
@@ -633,34 +597,38 @@ export default {
   margin-bottom: 30px;
 }
 
-.threshold-controls h3 {
-  color: #2c3e50;
-  margin-bottom: 15px;
-}
-
-.threshold-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+.algorithm-info {
   margin-bottom: 20px;
 }
 
-.threshold-item {
+.algorithm-badge {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
 }
 
-.threshold-item label {
+.badge-icon {
+  font-size: 2rem;
+  min-width: 50px;
+  text-align: center;
+}
+
+.badge-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.2rem;
   font-weight: 600;
-  color: #555;
-  margin-bottom: 5px;
 }
 
-.threshold-item input {
-  padding: 8px 12px;
-  border: 2px solid #e9ecef;
-  border-radius: 5px;
-  font-size: 14px;
+.badge-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+  line-height: 1.4;
 }
 
 .action-buttons {
@@ -933,8 +901,10 @@ export default {
     grid-template-columns: 1fr;
   }
 
-  .threshold-grid {
-    grid-template-columns: 1fr;
+  .algorithm-badge {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
   }
 
   .action-buttons {
