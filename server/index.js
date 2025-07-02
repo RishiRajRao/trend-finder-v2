@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const TrendTracker = require('./trendTracker');
-const ViralNewsDetector = require('./viralNewsDetector');
+const ViralNewsDetectorV3 = require('./viralNewsDetector');
 require('dotenv').config();
 
 const app = express();
@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3001;
 
 // Initialize trend tracker and viral news detector
 const trendTracker = new TrendTracker();
-const viralNewsDetector = new ViralNewsDetector();
+const viralNewsDetector = new ViralNewsDetectorV3();
 
 // Middleware
 app.use(cors());
@@ -423,12 +423,14 @@ app.get('/api/v2/viral-news', async (req, res) => {
       data: viralNewsData.items,
       summary: {
         totalNewsAnalyzed: viralNewsData.totalNews,
-        viralNewsFound: viralNewsData.viralNews,
+        analyzedNews: viralNewsData.analyzedNews,
+        validatedViralNews: viralNewsData.validatedViralNews,
+        crossPlatformValidated: viralNewsData.crossPlatformValidated,
         viralThresholds: {
-          minTweets: 100,
-          minTweetImpressions: 100,
-          minRedditPosts: 20,
-          minUpvoteRatio: 0.7,
+          minTweets: 10,
+          minTweetImpressions: 150,
+          minRedditPosts: 1,
+          minUpvoteRatio: 0.5,
         },
       },
       timestamp: viralNewsData.analysisTime,

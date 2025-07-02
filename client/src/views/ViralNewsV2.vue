@@ -42,11 +42,12 @@
     <!-- Results Section -->
     <div v-if="!loading && viralNews.length > 0" class="results-section">
       <div class="results-header">
-        <h2>🔥 Viral News Results</h2>
+        <h2>📊 News Analysis Results</h2>
         <div class="stats">
-          <span class="stat">{{ viralNews.length }} Viral</span>
-          <span class="stat">{{ totalAnalyzed }} Total</span>
-          <span class="stat">{{ viralPercentage }}% Viral</span>
+          <span class="stat">{{ validatedViral }} Validated Viral</span>
+          <span class="stat">{{ crossPlatformValidated }} Cross-Platform</span>
+          <span class="stat">{{ analyzedCount }} Fully Analyzed</span>
+          <span class="stat">{{ totalAnalyzed }} Total Sources</span>
         </div>
       </div>
 
@@ -54,7 +55,10 @@
         <div
           v-for="newsItem in viralNews"
           :key="newsItem.url"
-          class="news-card"
+          :class="[
+            'news-card',
+            { 'news-card-estimated': !newsItem.isAnalyzed },
+          ]"
         >
           <div class="news-header">
             <h3 class="news-title">
@@ -62,8 +66,32 @@
                 {{ newsItem.title }}
               </a>
             </h3>
-            <div class="viral-score">
-              {{ newsItem.viralMetrics.viralScore }}/100
+            <div class="viral-metrics">
+              <div
+                :class="[
+                  'viral-score',
+                  getScoreClass(newsItem.viralMetrics.viralScore),
+                ]"
+              >
+                {{ newsItem.viralMetrics.viralScore }}/100
+              </div>
+              <div class="viral-status">
+                <span
+                  v-if="newsItem.isValidatedViral"
+                  class="status-badge validated"
+                >
+                  ✅ Validated Viral
+                </span>
+                <span
+                  v-else-if="newsItem.isAnalyzed"
+                  class="status-badge potential"
+                >
+                  📊 {{ newsItem.viralPotential }}
+                </span>
+                <span v-else class="status-badge estimated">
+                  🔮 Estimated Potential
+                </span>
+              </div>
             </div>
           </div>
 
@@ -71,6 +99,18 @@
             <span class="source">{{ newsItem.source }}</span>
             <span class="api">{{ newsItem.api }}</span>
             <span class="time">{{ formatTime(newsItem.publishedAt) }}</span>
+            <span
+              v-if="newsItem.crossPlatformValidated"
+              class="validation-badge"
+            >
+              🔗 Cross-Platform Validated
+            </span>
+            <span v-if="newsItem.isAnalyzed" class="analysis-badge analyzed">
+              🔍 Fully Analyzed
+            </span>
+            <span v-else class="analysis-badge estimated">
+              📋 Basic Analysis
+            </span>
           </div>
 
           <div class="cross-platform-evidence">
@@ -116,38 +156,73 @@
                 </div>
                 <div class="platform-stats">
                   <span>{{ newsItem.viralMetrics.twitter.count }} tweets</span>
-                  <span
+                  <span v-if="newsItem.viralMetrics.twitter.totalImpressions"
                     >{{
                       newsItem.viralMetrics.twitter.totalImpressions.toLocaleString()
                     }}
                     impressions</span
                   >
-                  <span
+                  <span v-if="newsItem.viralMetrics.twitter.verifiedAccounts"
                     >{{
                       newsItem.viralMetrics.twitter.verifiedAccounts
                     }}
                     verified accounts</span
                   >
+                  <span v-if="!newsItem.isAnalyzed" class="not-analyzed">
+                    No detailed data - Limited analysis
+                  </span>
                 </div>
-                <div class="disclaimer">
+                <div
+                  v-if="newsItem.viralMetrics.twitter.disclaimer"
+                  class="disclaimer"
+                >
                   {{ newsItem.viralMetrics.twitter.disclaimer }}
+                </div>
+                <div v-if="!newsItem.isAnalyzed" class="disclaimer">
+                  ℹ️ This item was not fully analyzed for viral potential due to
+                  API rate limits.
                 </div>
 
                 <!-- All Twitter Posts -->
-                <div class="posts-preview">
+                <div
+                  v-if="newsItem.viralMetrics.twitter.tweets?.length"
+                  class="posts-preview"
+                >
                   <div
                     v-for="tweet in newsItem.viralMetrics.twitter.tweets"
                     :key="tweet.id"
                     class="tweet-preview"
                   >
                     <div class="tweet-header">
-                      <span class="username">@{{ tweet.username }}</span>
+                      <a
+                        :href="`https://twitter.com/${tweet.username}`"
+                        target="_blank"
+                        rel="noopener"
+                        class="username-link"
+                      >
+                        @{{ tweet.username }}
+                      </a>
                       <span v-if="tweet.isVerified" class="verified">✓</span>
                       <span class="time">{{
                         tweet.timeAgo || getTimeAgo(tweet.created_at)
                       }}</span>
+                      <a
+                        :href="tweet.url"
+                        target="_blank"
+                        rel="noopener"
+                        class="tweet-link"
+                      >
+                        🔗 View Tweet
+                      </a>
                     </div>
-                    <div class="tweet-text">{{ tweet.text }}</div>
+                    <a
+                      :href="tweet.url"
+                      target="_blank"
+                      rel="noopener"
+                      class="tweet-text-link"
+                    >
+                      <div class="tweet-text">{{ tweet.text }}</div>
+                    </a>
                     <div class="tweet-stats">
                       <span>💬 {{ tweet.replies }}</span>
                       <span>🔄 {{ tweet.retweets }}</span>
@@ -179,11 +254,11 @@
                 </div>
                 <div class="platform-stats">
                   <span>{{ newsItem.viralMetrics.reddit.count }} posts</span>
-                  <span
+                  <span v-if="newsItem.viralMetrics.reddit.totalUpvotes"
                     >{{ newsItem.viralMetrics.reddit.totalUpvotes }} total
                     upvotes</span
                   >
-                  <span
+                  <span v-if="newsItem.viralMetrics.reddit.totalComments"
                     >{{
                       newsItem.viralMetrics.reddit.totalComments
                     }}
@@ -196,22 +271,50 @@
                     {{ newsItem.viralMetrics.reddit.subredditsFound.length }}
                     subreddits
                   </span>
+                  <span v-if="!newsItem.isAnalyzed" class="not-analyzed">
+                    No detailed data - Limited analysis
+                  </span>
                 </div>
-                <div class="disclaimer">
+                <div
+                  v-if="newsItem.viralMetrics.reddit.disclaimer"
+                  class="disclaimer"
+                >
                   {{ newsItem.viralMetrics.reddit.disclaimer }}
+                </div>
+                <div v-if="!newsItem.isAnalyzed" class="disclaimer">
+                  ℹ️ This item was not fully analyzed for viral potential due to
+                  API rate limits.
                 </div>
 
                 <!-- All Reddit Posts -->
-                <div class="posts-preview">
+                <div
+                  v-if="newsItem.viralMetrics.reddit.posts?.length"
+                  class="posts-preview"
+                >
                   <div
                     v-for="post in newsItem.viralMetrics.reddit.posts"
                     :key="post.id"
                     class="reddit-preview"
                   >
                     <div class="reddit-header">
-                      <span class="subreddit">r/{{ post.subreddit }}</span>
+                      <a
+                        :href="`https://reddit.com/r/${post.subreddit}`"
+                        target="_blank"
+                        rel="noopener"
+                        class="subreddit-link"
+                      >
+                        r/{{ post.subreddit }}
+                      </a>
                       <span class="verified">✓ Real</span>
                       <span class="time">{{ post.timeAgo }}</span>
+                      <a
+                        :href="post.url"
+                        target="_blank"
+                        rel="noopener"
+                        class="reddit-link"
+                      >
+                        🔗 View Post
+                      </a>
                     </div>
                     <div class="reddit-title">
                       <a :href="post.url" target="_blank" rel="noopener">
@@ -251,10 +354,10 @@
       v-if="!loading && viralNews.length === 0 && hasSearched"
       class="empty-state"
     >
-      <h3>📰 No Viral News Found</h3>
+      <h3>📰 No News Found</h3>
       <p>
-        Try adjusting the viral thresholds or check back later for more recent
-        news.
+        No news items could be analyzed at this time. Please check back later
+        for fresh content.
       </p>
     </div>
   </div>
@@ -272,12 +375,15 @@ export default {
       hasSearched: false,
       viralNews: [],
       totalAnalyzed: 0,
+      validatedViral: 0,
+      crossPlatformValidated: 0,
+      analyzedCount: 0,
     };
   },
   computed: {
     viralPercentage() {
       if (this.totalAnalyzed === 0) return 0;
-      return Math.round((this.viralNews.length / this.totalAnalyzed) * 100);
+      return Math.round((this.validatedViral / this.totalAnalyzed) * 100);
     },
   },
   methods: {
@@ -291,9 +397,20 @@ export default {
         const response = await axios.get('/api/v2/viral-news');
 
         if (response.data.success) {
-          // Fix: API returns 'data' not 'items', and 'summary' not 'totalNews'
+          // Handle actual API response structure
           this.totalAnalyzed = response.data.summary.totalNewsAnalyzed;
-          this.viralNews = response.data.data.map((item) => ({
+          this.analyzedCount = response.data.summary.analyzedNews;
+
+          // Calculate metrics from the returned data
+          const newsItems = response.data.data;
+          this.validatedViral = newsItems.filter(
+            (item) => item.isValidatedViral
+          ).length;
+          this.crossPlatformValidated = newsItems.filter(
+            (item) => item.crossPlatformValidated
+          ).length;
+
+          this.viralNews = newsItems.map((item) => ({
             ...item,
             activeTab: 'twitter', // Default to Twitter tab
           }));
@@ -334,6 +451,14 @@ export default {
         const diffInWeeks = Math.floor(diffInSeconds / 604800);
         return `${diffInWeeks} weeks ago`;
       }
+    },
+
+    getScoreClass(score) {
+      if (score >= 80) return 'very-high';
+      if (score >= 60) return 'high';
+      if (score >= 40) return 'medium';
+      if (score >= 20) return 'low';
+      return 'minimal';
     },
   },
 };
@@ -450,6 +575,12 @@ export default {
   padding: 10px;
   margin: 8px 0;
   border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.tweet-preview:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-left-color: #1da1f2;
 }
 
 .tweet-header,
@@ -466,9 +597,82 @@ export default {
   color: #1da1f2;
 }
 
+.username-link {
+  font-weight: bold;
+  color: #1da1f2;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.username-link:hover {
+  color: #0d8bd9;
+  text-decoration: underline;
+}
+
+.tweet-link {
+  color: #1da1f2;
+  text-decoration: none;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  background: rgba(29, 161, 242, 0.1);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.tweet-link:hover {
+  background: rgba(29, 161, 242, 0.2);
+  text-decoration: none;
+}
+
+.tweet-text-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.tweet-text-link:hover {
+  text-decoration: none;
+}
+
+.tweet-text-link:hover .tweet-text {
+  background: rgba(29, 161, 242, 0.05);
+  border-radius: 4px;
+  padding: 8px;
+  transition: all 0.2s ease;
+}
+
 .subreddit {
   font-weight: bold;
   color: #ff4500;
+}
+
+.subreddit-link {
+  font-weight: bold;
+  color: #ff4500;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.subreddit-link:hover {
+  color: #e03e00;
+  text-decoration: underline;
+}
+
+.reddit-link {
+  color: #ff4500;
+  text-decoration: none;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  background: rgba(255, 69, 0, 0.1);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.reddit-link:hover {
+  background: rgba(255, 69, 0, 0.2);
+  text-decoration: none;
 }
 
 .verified {
@@ -732,6 +936,12 @@ export default {
   border: 1px solid #e9ecef;
 }
 
+.news-card-estimated {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  opacity: 0.95;
+}
+
 .news-header {
   display: flex;
   justify-content: space-between;
@@ -758,14 +968,71 @@ export default {
   text-decoration: underline;
 }
 
+.viral-metrics {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  margin-left: 10px;
+}
+
 .viral-score {
-  background: linear-gradient(135deg, #ff6b6b, #ffa500);
   color: white;
   padding: 5px 10px;
   border-radius: 15px;
   font-weight: bold;
   font-size: 14px;
-  margin-left: 10px;
+}
+
+.viral-score.very-high {
+  background: linear-gradient(135deg, #dc3545, #ff1744);
+}
+
+.viral-score.high {
+  background: linear-gradient(135deg, #ff6b6b, #ffa500);
+}
+
+.viral-score.medium {
+  background: linear-gradient(135deg, #ffa500, #ffeb3b);
+  color: #333;
+}
+
+.viral-score.low {
+  background: linear-gradient(135deg, #28a745, #20c997);
+}
+
+.viral-score.minimal {
+  background: linear-gradient(135deg, #6c757d, #adb5bd);
+}
+
+.viral-status {
+  font-size: 11px;
+}
+
+.status-badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.status-badge.validated {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-badge.potential {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status-badge.estimated {
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+  font-style: italic;
 }
 
 .news-meta {
@@ -782,6 +1049,34 @@ export default {
   padding: 3px 8px;
   border-radius: 12px;
   color: #6c757d;
+}
+
+.validation-badge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: 1px solid #bbdefb;
+}
+
+.analysis-badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.analysis-badge.analyzed {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.analysis-badge.estimated {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
 }
 
 .cross-platform-evidence {
@@ -813,6 +1108,13 @@ export default {
   border-radius: 8px;
   font-size: 11px;
   color: #495057;
+}
+
+.platform-stats .not-analyzed {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+  font-style: italic;
 }
 
 .news-keywords {
