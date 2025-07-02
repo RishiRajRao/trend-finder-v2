@@ -87,20 +87,56 @@ class TrendTracker {
         return [];
       }
 
-      const response = await axios.get(
-        'https://gnews.io/api/v4/top-headlines',
-        {
-          params: {
-            token: this.gnewsApiKey,
-            country: 'in',
-            lang: 'en',
-            category: 'general', // Focus on general news, not entertainment
-            max: 15,
-          },
-        }
+      // Calculate exactly 24 hours ago with precise timestamp
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const fromDate = twentyFourHoursAgo.toISOString(); // Full ISO format: YYYY-MM-DDTHH:MM:SSZ
+      const toDate = now.toISOString(); // Current time as upper limit
+
+      console.log(
+        `🕐 GNews: Fetching news from ${fromDate} to ${toDate} (last 24 hours)`
       );
 
-      return response.data.articles.map((article) => ({
+      // Use search endpoint to target viral/trending content with strict date range
+      const response = await axios.get('https://gnews.io/api/v4/search', {
+        params: {
+          token: this.gnewsApiKey,
+          country: 'in',
+          lang: 'en',
+          q: 'viral OR trending OR breaking OR exclusive OR watch OR popular OR shares OR social media OR buzz OR sensation OR controversy OR backlash OR outrage OR massive OR epic OR incredible OR stunning', // Target viral keywords
+          sortby: 'publishedAt', // Sort by publish date to get recent first, not relevance which might return old viral content
+          max: 15,
+          from: fromDate, // Lower bound - exactly 24 hours ago
+          to: toDate, // Upper bound - now (prevents old cached results)
+        },
+      });
+
+      console.log(
+        `✅ GNews: Retrieved ${
+          response.data.articles?.length || 0
+        } articles from last 24 hours`
+      );
+
+      // Additional client-side filtering to ensure articles are really from last 24 hours
+      const filteredArticles = response.data.articles.filter((article) => {
+        const publishedDate = new Date(article.publishedAt);
+        const isWithin24Hours =
+          publishedDate >= twentyFourHoursAgo && publishedDate <= now;
+
+        if (!isWithin24Hours) {
+          console.log(
+            `⚠️ GNews: Filtered out old article: "${article.title}" (${article.publishedAt})`
+          );
+        }
+
+        return isWithin24Hours;
+      });
+
+      console.log(
+        `✅ GNews: After client-side filtering: ${filteredArticles.length} articles confirmed within 24 hours`
+      );
+
+      return filteredArticles.map((article) => ({
         title: article.title,
         description: article.description,
         source: article.source.name,
@@ -126,6 +162,17 @@ class TrendTracker {
         return [];
       }
 
+      // Calculate exactly 24 hours ago and today for date range
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const fromDate = twentyFourHoursAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+      const toDate = now.toISOString().split('T')[0]; // YYYY-MM-DD (today)
+      const dateRange = `${fromDate},${toDate}`; // Date range format for MediaStack
+
+      console.log(
+        `🕐 MediaStack: Fetching news from ${fromDate} to ${toDate} (last 24 hours)`
+      );
+
       const response = await axios.get('http://api.mediastack.com/v1/news', {
         params: {
           access_key: this.mediastackApiKey,
@@ -136,8 +183,15 @@ class TrendTracker {
           keywords:
             'viral,trending,breaking,popular,watch,latest,exclusive,video,shares,social media', // Target viral keywords
           limit: 15,
+          date: dateRange, // Date range to ensure last 24 hours coverage
         },
       });
+
+      console.log(
+        `✅ MediaStack: Retrieved ${
+          response.data.data?.length || 0
+        } articles from last 24 hours`
+      );
 
       return response.data.data.map((article) => ({
         title: article.title,
