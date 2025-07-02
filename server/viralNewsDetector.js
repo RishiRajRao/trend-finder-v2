@@ -1,5 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const OpenAI = require('openai');
 require('dotenv').config();
 
 class ViralNewsDetectorV3 {
@@ -11,6 +12,28 @@ class ViralNewsDetectorV3 {
     this.rapidApiKey = process.env.RAPIDAPI_KEY;
     this.rapidApiHost =
       process.env.RAPIDAPI_HOST || 'twitter241.p.rapidapi.com';
+
+    // 🤖 OpenAI Configuration for AI-powered search term generation
+    console.log(
+      `🔍 OpenAI API Key status: ${
+        process.env.OPENAI_API_KEY ? 'Found' : 'Not found'
+      }`
+    );
+    console.log(
+      `🔍 OpenAI API Key length: ${
+        process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0
+      }`
+    );
+
+    this.openaiClient =
+      process.env.OPENAI_API_KEY &&
+      process.env.OPENAI_API_KEY !== 'your_openai_api_key_here'
+        ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+        : null;
+
+    console.log(
+      `🤖 OpenAI Client initialized: ${this.openaiClient ? 'Yes' : 'No'}`
+    );
 
     // Working Nitter instances (public Twitter frontend) - backup only
     this.nitterInstances = [
@@ -294,6 +317,149 @@ class ViralNewsDetectorV3 {
   }
 
   /**
+   * 🤖 AI-Powered: Generate contextual search terms using OpenAI
+   * This creates highly specific and relevant Twitter searches
+   */
+  async generateContextualSearchTerms(newsItem) {
+    const title = newsItem.title || '';
+    const description = newsItem.description || '';
+
+    // If OpenAI is available, use AI to generate smart search terms
+    if (this.openaiClient) {
+      try {
+        console.log('🤖 Using OpenAI to generate Twitter search terms...');
+
+        const prompt = `Analyze this news story and generate the best possible Twitter search query to find related tweets:
+
+Title: "${title}"
+Description: "${description}"
+
+Requirements:
+1. Generate ONE highly specific search query (2-6 words)
+2. Focus on the most viral/tweetable aspect of the story
+3. Use exact quotes if present in the title
+4. Target people, conflicts, breaking news, controversies
+5. Avoid generic terms like "news", "today", "latest"
+6. Make it likely to find real tweets about this exact story
+
+Examples of GOOD queries:
+- "Trump threatens Musk" (for political conflict)
+- "head back to South Africa" (for exact quote)
+- "Real Madrid beats Barcelona" (for sports results)
+- "iPhone 15 battery exploding" (for tech controversy)
+
+Return ONLY the search query, no explanation.`;
+
+        const completion = await this.openaiClient.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an expert at creating viral Twitter search queries. You understand what makes content shareable and how people tweet about news. Return only the search query.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          max_tokens: 50,
+          temperature: 0.3,
+        });
+
+        const aiSearchTerm = completion.choices[0].message.content
+          .trim()
+          .replace(/^["']|["']$/g, '') // Remove quotes
+          .replace(/^search[:\s]+/i, '') // Remove "search:" prefix
+          .trim();
+
+        if (
+          aiSearchTerm &&
+          aiSearchTerm.length > 3 &&
+          aiSearchTerm.length < 100
+        ) {
+          console.log(`🎯 AI generated search term: "${aiSearchTerm}"`);
+          return aiSearchTerm;
+        }
+      } catch (error) {
+        console.log('⚠️ OpenAI search term generation failed:', error.message);
+      }
+    }
+
+    // Fallback to manual strategies if AI is not available or fails
+    console.log('🔄 Using fallback search term generation...');
+
+    // Strategy 1: Look for quotes in title (often the most viral part)
+    const quotesMatch = title.match(/'([^']+)'/g) || title.match(/"([^"]+)"/g);
+    if (quotesMatch && quotesMatch.length > 0) {
+      return quotesMatch[0].replace(/['"]/g, '');
+    }
+
+    // Strategy 2: Look for person vs person conflicts (highly viral)
+    const vsPatterns = [
+      /(\w+(?:\s+\w+)?)\s+(?:vs|versus|against|threatens|dares|slams|blasts|hits|attacks)\s+(\w+(?:\s+\w+)?)/i,
+      /(\w+(?:\s+\w+)?)\s+(?:and|vs)\s+(\w+(?:\s+\w+)?)/i,
+    ];
+
+    for (const pattern of vsPatterns) {
+      const match = title.match(pattern);
+      if (match) {
+        return `${match[1]} ${match[2]}`;
+      }
+    }
+
+    // Strategy 3: Extract key action phrases
+    const actionPatterns = [
+      /(\w+(?:\s+\w+)?)\s+(threatens|announces|reveals|launches|dares|slams|hits|blasts|attacks|says|claims)/i,
+      /(breaking|just in|urgent):\s*(.{1,50})/i,
+    ];
+
+    for (const pattern of actionPatterns) {
+      const match = title.match(pattern);
+      if (match && match[1] && match[2]) {
+        return `${match[1]} ${match[2]}`;
+      }
+    }
+
+    // Strategy 4: Use meaningful title chunks
+    let cleanTitle = title
+      .replace(/^(breaking|urgent|just in|update|news|latest):\s*/i, '')
+      .replace(/\s+-\s+.+$/, '')
+      .trim();
+
+    const words = cleanTitle.split(/\s+/);
+    if (words.length >= 2) {
+      const meaningfulWords = words
+        .filter(
+          (word) =>
+            word.length > 2 &&
+            ![
+              'the',
+              'and',
+              'or',
+              'but',
+              'for',
+              'with',
+              'after',
+              'before',
+            ].includes(word.toLowerCase())
+        )
+        .slice(0, 4);
+
+      if (meaningfulWords.length >= 2) {
+        return meaningfulWords.join(' ');
+      }
+    }
+
+    // Strategy 5: Fallback to keywords
+    if (newsItem.keywords && newsItem.keywords.length >= 2) {
+      return newsItem.keywords.slice(0, 3).join(' ');
+    }
+
+    return 'breaking news';
+  }
+
+  /**
    * Cross-validate news item with Twitter and Reddit
    */
   async crossValidateNews(newsItem) {
@@ -319,11 +485,9 @@ class ViralNewsDetectorV3 {
    */
   async searchTwitterForNews(newsItem) {
     try {
-      console.log(
-        `🐦 Searching Twitter for: ${newsItem.keywords.slice(0, 2).join(', ')}`
-      );
-
-      const searchTerms = newsItem.keywords.slice(0, 2).join(' ');
+      // 🤖 AI-Powered: Generate contextual search terms from the actual news story
+      const searchTerms = await this.generateContextualSearchTerms(newsItem);
+      console.log(`🐦 Searching Twitter for: ${searchTerms}`);
       const twitterSearchUrl = `https://twitter.com/search?q=${encodeURIComponent(
         searchTerms
       )}&src=typed_query&f=live`;
