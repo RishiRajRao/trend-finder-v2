@@ -149,11 +149,13 @@ class ViralNewsDetectorV3 {
           `📋 Adding unanalyzed: ${newsItem.title.substring(0, 50)}...`
         );
 
+        const viralScore = await this.estimateBasicViralScore(newsItem);
+
         allNewsWithMetrics.push({
           ...newsItem,
           viralMetrics: {
             isViral: false,
-            viralScore: this.estimateBasicViralScore(newsItem),
+            viralScore: viralScore,
             twitter: {
               count: 0,
               searchUrl: `https://twitter.com/search?q=${encodeURIComponent(
@@ -169,9 +171,7 @@ class ViralNewsDetectorV3 {
             crossPlatformEvidence: 0,
           },
           isValidatedViral: false,
-          viralPotential: this.getViralPotentialLevel(
-            this.estimateBasicViralScore(newsItem)
-          ),
+          viralPotential: this.getViralPotentialLevel(viralScore),
           hasTwitterData: false,
           hasRedditData: false,
           crossPlatformValidated: false,
@@ -2035,9 +2035,51 @@ Reply with only "YES" if highly relevant, or "NO" if not directly related.`;
   }
 
   /**
-   * Estimate basic viral score for unanalyzed news items
+   * 🧠 ADVANCED: Estimate viral score using AI-powered viral potential analysis
    */
-  estimateBasicViralScore(newsItem) {
+  async estimateBasicViralScore(newsItem) {
+    try {
+      console.log(
+        `🔍 Running advanced viral potential analysis for: "${newsItem.title.substring(
+          0,
+          50
+        )}..."`
+      );
+
+      // Use the new AI-powered viral potential analyzer
+      const viralAnalysis = await this.analyzeViralPotential(newsItem);
+
+      // Add the viral analysis data to the news item for frontend display
+      newsItem.viralAnalysis = {
+        score: viralAnalysis.viralScore,
+        triggers: viralAnalysis.primaryTriggers,
+        controversyLevel: viralAnalysis.controversyLevel,
+        emotionalImpact: viralAnalysis.emotionalImpact,
+        shareability: viralAnalysis.shareability,
+        explanation: viralAnalysis.explanation,
+        factors: viralAnalysis.factors,
+        analyzedBy: viralAnalysis.analyzedBy,
+      };
+
+      console.log(
+        `📊 Viral Analysis Result: ${viralAnalysis.viralScore}/100 (${
+          viralAnalysis.analyzedBy
+        }) - Triggers: ${viralAnalysis.primaryTriggers.join(', ')}`
+      );
+
+      return viralAnalysis.viralScore;
+    } catch (error) {
+      console.log(
+        `⚠️ Advanced viral analysis failed: ${error.message}, using simple fallback`
+      );
+      return this.estimateBasicViralScoreFallback(newsItem);
+    }
+  }
+
+  /**
+   * 🔧 SIMPLE FALLBACK: Basic viral score estimation (last resort)
+   */
+  estimateBasicViralScoreFallback(newsItem) {
     let score = 15; // Base score for all news
 
     const title = (newsItem.title || '').toLowerCase();
@@ -2299,6 +2341,419 @@ Reply with only "YES" if highly relevant, or "NO" if not directly related.`;
     }
 
     return tweets;
+  }
+
+  /**
+   * 🧠 AI-POWERED VIRAL POTENTIAL ANALYZER
+   * Analyzes multiple factors that make news go viral/trending/controversial
+   */
+  async analyzeViralPotential(newsItem) {
+    try {
+      if (!this.openaiClient) {
+        console.log('🔄 Using fallback viral potential analysis...');
+        return this.analyzeViralPotentialFallback(newsItem);
+      }
+
+      const title = newsItem.title || '';
+      const description = newsItem.description || '';
+
+      console.log(
+        `🧠 AI analyzing viral potential for: "${title.substring(0, 60)}..."`
+      );
+
+      const prompt = `
+Analyze the viral potential of this news story. Consider factors that make content go viral on social media.
+
+NEWS TITLE: "${title}"
+NEWS DESCRIPTION: "${description}"
+
+Rate the VIRAL POTENTIAL (0-100) considering these factors:
+
+🔥 VIRAL TRIGGERS:
+- Breaking/Urgent nature (immediacy, developing stories)
+- Controversy/Polarization (political, social divide topics)
+- Emotional Impact (anger, shock, joy, sadness, surprise)
+- Celebrity/High-Profile figures involved
+- Human Interest (inspiring, heartwarming, tragic personal stories)
+- Sensational/Clickbait elements ("shocking", "unbelievable", etc.)
+
+⚡ TRENDING FACTORS:
+- Current relevance (trending topics, seasonal events)
+- Relatability (affects many people, universal experiences)
+- Shareability (likely to be shared, discussed, debated)
+- Visual potential (likely to have compelling images/videos)
+- Meme potential (likely to spawn jokes, reactions, memes)
+
+🌍 SOCIAL AMPLIFICATION:
+- Political angles (government, policy, elections)
+- Pop culture relevance (entertainment, sports, tech)
+- Geographic relevance (local vs global interest)
+- Target demographic appeal (age groups, communities)
+
+Respond in this EXACT format:
+VIRAL_SCORE: [0-100]
+PRIMARY_TRIGGERS: [comma-separated list of main viral factors]
+CONTROVERSY_LEVEL: [Low/Medium/High]
+EMOTIONAL_IMPACT: [Low/Medium/High]
+SHAREABILITY: [Low/Medium/High]
+EXPLANATION: [2-sentence explanation of viral potential]
+`;
+
+      const response = await this.openaiClient.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 300,
+        temperature: 0.3,
+      });
+
+      const analysis = response.choices[0]?.message?.content || '';
+      return this.parseViralPotentialAnalysis(analysis, newsItem);
+    } catch (error) {
+      console.log(
+        `⚠️ AI viral analysis failed: ${error.message}, using fallback`
+      );
+      return this.analyzeViralPotentialFallback(newsItem);
+    }
+  }
+
+  /**
+   * Parse AI analysis response into structured data
+   */
+  parseViralPotentialAnalysis(analysis, newsItem) {
+    try {
+      const lines = analysis.split('\n').filter((line) => line.trim());
+
+      let viralScore = 25; // Default fallback
+      let primaryTriggers = [];
+      let controversyLevel = 'Low';
+      let emotionalImpact = 'Low';
+      let shareability = 'Low';
+      let explanation = 'Standard viral potential analysis';
+
+      for (const line of lines) {
+        if (line.includes('VIRAL_SCORE:')) {
+          const scoreMatch = line.match(/(\d+)/);
+          if (scoreMatch) viralScore = parseInt(scoreMatch[1]);
+        } else if (line.includes('PRIMARY_TRIGGERS:')) {
+          const triggers = line.split(':')[1]?.trim() || '';
+          primaryTriggers = triggers
+            .split(',')
+            .map((t) => t.trim())
+            .filter((t) => t);
+        } else if (line.includes('CONTROVERSY_LEVEL:')) {
+          controversyLevel = line.split(':')[1]?.trim() || 'Low';
+        } else if (line.includes('EMOTIONAL_IMPACT:')) {
+          emotionalImpact = line.split(':')[1]?.trim() || 'Low';
+        } else if (line.includes('SHAREABILITY:')) {
+          shareability = line.split(':')[1]?.trim() || 'Low';
+        } else if (line.includes('EXPLANATION:')) {
+          explanation = line.split(':')[1]?.trim() || explanation;
+        }
+      }
+
+      console.log(
+        `🎯 AI Viral Analysis: Score ${viralScore}, Triggers: ${primaryTriggers.join(
+          ', '
+        )}`
+      );
+
+      return {
+        viralScore: Math.min(Math.max(viralScore, 5), 100), // Clamp between 5-100
+        primaryTriggers,
+        controversyLevel,
+        emotionalImpact,
+        shareability,
+        explanation,
+        analyzedBy: 'AI-GPT',
+        factors: {
+          hasBreakingNews:
+            analysis.toLowerCase().includes('breaking') ||
+            analysis.toLowerCase().includes('urgent'),
+          hasControversy:
+            controversyLevel === 'High' ||
+            analysis.toLowerCase().includes('controversial'),
+          hasCelebrity:
+            analysis.toLowerCase().includes('celebrity') ||
+            analysis.toLowerCase().includes('high-profile'),
+          hasEmotionalTrigger: emotionalImpact === 'High',
+          isHighlyShareable: shareability === 'High',
+          isPolitical: analysis.toLowerCase().includes('political'),
+          isPopCulture:
+            analysis.toLowerCase().includes('pop culture') ||
+            analysis.toLowerCase().includes('entertainment'),
+        },
+      };
+    } catch (error) {
+      console.log(`⚠️ Failed to parse AI analysis: ${error.message}`);
+      return this.analyzeViralPotentialFallback(newsItem);
+    }
+  }
+
+  /**
+   * 🔧 ENHANCED FALLBACK VIRAL POTENTIAL ANALYZER
+   * Much more sophisticated than the basic version
+   */
+  analyzeViralPotentialFallback(newsItem) {
+    let score = 20; // Base score
+    const title = (newsItem.title || '').toLowerCase();
+    const description = (newsItem.description || '').toLowerCase();
+    const content = title + ' ' + description;
+
+    const triggers = [];
+    const factors = {};
+
+    // 🚨 BREAKING NEWS INDICATORS (High viral potential)
+    const breakingPatterns = [
+      'breaking',
+      'urgent',
+      'alert',
+      'just in',
+      'developing',
+      'live update',
+      'exclusive',
+      'leaked',
+      'revealed',
+      'exposed',
+      'uncovered',
+    ];
+    let breakingCount = 0;
+    breakingPatterns.forEach((pattern) => {
+      if (content.includes(pattern)) {
+        breakingCount++;
+        score += 12;
+      }
+    });
+    if (breakingCount > 0) {
+      triggers.push('Breaking News');
+      factors.hasBreakingNews = true;
+    }
+
+    // 🔥 CONTROVERSY & POLARIZATION (Very high viral potential)
+    const controversyPatterns = [
+      'scandal',
+      'controversy',
+      'outrage',
+      'slams',
+      'blasts',
+      'criticizes',
+      'accused',
+      'allegations',
+      'protests',
+      'backlash',
+      'condemned',
+      'fury',
+      'threatens',
+      'warns',
+      'demands',
+      'refuses',
+      'defends',
+      'attacks',
+    ];
+    let controversyCount = 0;
+    controversyPatterns.forEach((pattern) => {
+      if (content.includes(pattern)) {
+        controversyCount++;
+        score += 10;
+      }
+    });
+    if (controversyCount > 0) {
+      triggers.push('Controversy');
+      factors.hasControversy = true;
+    }
+
+    // 🌟 CELEBRITY & HIGH-PROFILE FIGURES
+    const celebrityPatterns = [
+      'trump',
+      'biden',
+      'musk',
+      'bezos',
+      'gates',
+      'zuckerberg',
+      'celebrity',
+      'bollywood',
+      'hollywood',
+      'actor',
+      'actress',
+      'singer',
+      'musician',
+      'athlete',
+      'cricket',
+      'football',
+      'sports',
+    ];
+    let celebrityCount = 0;
+    celebrityPatterns.forEach((pattern) => {
+      if (content.includes(pattern)) {
+        celebrityCount++;
+        score += 8;
+      }
+    });
+    if (celebrityCount > 0) {
+      triggers.push('Celebrity/High-Profile');
+      factors.hasCelebrity = true;
+    }
+
+    // 😱 EMOTIONAL TRIGGERS
+    const emotionalPatterns = [
+      'shocking',
+      'amazing',
+      'unbelievable',
+      'incredible',
+      'stunning',
+      'heartbreaking',
+      'tragic',
+      'inspiring',
+      'miraculous',
+      'devastating',
+      'outrageous',
+      'ridiculous',
+      'hilarious',
+      'adorable',
+      'terrifying',
+    ];
+    let emotionalCount = 0;
+    emotionalPatterns.forEach((pattern) => {
+      if (content.includes(pattern)) {
+        emotionalCount++;
+        score += 6;
+      }
+    });
+    if (emotionalCount > 0) {
+      triggers.push('Emotional Impact');
+      factors.hasEmotionalTrigger = true;
+    }
+
+    // 📈 TRENDING & VIRAL INDICATORS
+    const trendingPatterns = [
+      'viral',
+      'trending',
+      'popular',
+      'sensation',
+      'phenomenon',
+      'craze',
+      'buzz',
+      'hype',
+      'explosion',
+      'surge',
+      'wave',
+    ];
+    let trendingCount = 0;
+    trendingPatterns.forEach((pattern) => {
+      if (content.includes(pattern)) {
+        trendingCount++;
+        score += 5;
+      }
+    });
+    if (trendingCount > 0) {
+      triggers.push('Trending Topic');
+    }
+
+    // 🏛️ POLITICAL CONTENT (High shareability)
+    const politicalPatterns = [
+      'election',
+      'government',
+      'minister',
+      'president',
+      'parliament',
+      'policy',
+      'law',
+      'court',
+      'justice',
+      'rights',
+      'freedom',
+    ];
+    let politicalCount = 0;
+    politicalPatterns.forEach((pattern) => {
+      if (content.includes(pattern)) {
+        politicalCount++;
+        score += 7;
+      }
+    });
+    if (politicalCount > 0) {
+      triggers.push('Political');
+      factors.isPolitical = true;
+    }
+
+    // 💰 MONEY & ECONOMIC IMPACT
+    const economicPatterns = [
+      'billion',
+      'million',
+      'price',
+      'cost',
+      'expensive',
+      'cheap',
+      'market',
+      'stock',
+      'crypto',
+      'investment',
+      'economy',
+      'inflation',
+    ];
+    let economicCount = 0;
+    economicPatterns.forEach((pattern) => {
+      if (content.includes(pattern)) {
+        economicCount++;
+        score += 4;
+      }
+    });
+    if (economicCount > 0) {
+      triggers.push('Economic Impact');
+    }
+
+    // ⏰ TIME SENSITIVITY (Recent = higher viral potential)
+    if (newsItem.publishedAt) {
+      const hoursOld =
+        (new Date() - new Date(newsItem.publishedAt)) / (1000 * 60 * 60);
+      if (hoursOld <= 2) {
+        score += 15; // Super fresh
+        triggers.push('Breaking Fresh');
+      } else if (hoursOld <= 6) {
+        score += 10; // Very recent
+      } else if (hoursOld <= 24) {
+        score += 5; // Recent
+      }
+    }
+
+    // 📊 SOURCE AUTHORITY (Credible sources get more shares)
+    const source = (newsItem.source || '').toLowerCase();
+    const majorSources = [
+      'times',
+      'guardian',
+      'bbc',
+      'cnn',
+      'reuters',
+      'ap news',
+      'wall street',
+      'new york times',
+      'washington post',
+    ];
+    let sourceBonus = 0;
+    majorSources.forEach((majorSource) => {
+      if (source.includes(majorSource)) {
+        sourceBonus += 3;
+      }
+    });
+    score += sourceBonus;
+
+    // Determine levels based on score and content
+    const controversyLevel =
+      controversyCount >= 2 ? 'High' : controversyCount >= 1 ? 'Medium' : 'Low';
+    const emotionalImpact =
+      emotionalCount >= 2 ? 'High' : emotionalCount >= 1 ? 'Medium' : 'Low';
+    const shareability = score >= 60 ? 'High' : score >= 40 ? 'Medium' : 'Low';
+
+    return {
+      viralScore: Math.min(score, 95), // Cap at 95 for fallback
+      primaryTriggers: triggers.slice(0, 4), // Top 4 triggers
+      controversyLevel,
+      emotionalImpact,
+      shareability,
+      explanation: `Analyzed ${
+        triggers.length
+      } viral factors including ${triggers.slice(0, 2).join(', ')}`,
+      analyzedBy: 'Enhanced-Fallback',
+      factors,
+    };
   }
 }
 
