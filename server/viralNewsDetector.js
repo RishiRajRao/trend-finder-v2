@@ -180,12 +180,15 @@ class ViralNewsDetectorV3 {
         });
       }
 
-      // Sort by priority (1=validated viral, 2=analyzed non-viral, 3=unanalyzed), then by viral score
+      // Sort by viral score first (higher score = more viral), then by priority as tiebreaker
       allNewsWithMetrics.sort((a, b) => {
-        if (a.sortPriority !== b.sortPriority) {
-          return a.sortPriority - b.sortPriority;
+        // Primary sort: by viral score (descending - higher scores first)
+        const scoreDiff = b.viralMetrics.viralScore - a.viralMetrics.viralScore;
+        if (scoreDiff !== 0) {
+          return scoreDiff;
         }
-        return b.viralMetrics.viralScore - a.viralMetrics.viralScore;
+        // Tiebreaker: by priority (ascending - lower priority number = higher importance)
+        return a.sortPriority - b.sortPriority;
       });
 
       const validatedViralCount = allNewsWithMetrics.filter(
@@ -574,15 +577,30 @@ Return ONLY the search query, no explanation.`;
         );
       }
 
+      // 🤖 AI-Powered: Apply smart filtering for 24-hour timeframe and relevance
+      console.log(`📊 Before Twitter filtering: ${twitterData.length} tweets`);
+      const filteredTweets = await this.filterRelevantRecentTweets(
+        twitterData,
+        newsItem,
+        searchTerms
+      );
+      console.log(
+        `✅ After AI filtering: ${filteredTweets.length} relevant & recent tweets`
+      );
+
+      // Use filtered tweets for metrics calculation
+      const finalTweets =
+        filteredTweets.length > 0 ? filteredTweets : twitterData.slice(0, 5); // Keep at least 5 if all filtered out
+
       // Calculate metrics
-      const totalImpressions = twitterData.reduce(
+      const totalImpressions = finalTweets.reduce(
         (sum, tweet) => sum + tweet.impressions,
         0
       );
-      const verifiedCount = twitterData.filter(
+      const verifiedCount = finalTweets.filter(
         (tweet) => tweet.isVerified
       ).length;
-      const totalEngagement = twitterData.reduce(
+      const totalEngagement = finalTweets.reduce(
         (sum, tweet) => sum + tweet.retweets + tweet.likes + tweet.replies,
         0
       );
@@ -590,20 +608,20 @@ Return ONLY the search query, no explanation.`;
       return {
         searchTerms: searchTerms,
         searchUrl: twitterSearchUrl,
-        count: twitterData.length,
+        count: finalTweets.length,
         totalImpressions: totalImpressions,
         averageImpressions:
-          twitterData.length > 0
-            ? Math.round(totalImpressions / twitterData.length)
+          finalTweets.length > 0
+            ? Math.round(totalImpressions / finalTweets.length)
             : 0,
         totalEngagement: totalEngagement,
         verifiedAccounts: verifiedCount,
-        tweets: twitterData.slice(0, 15), // Show up to 15 tweets
-        disclaimer: twitterData[0]?.fromRapidAPI
-          ? '🔥 REAL tweets fetched directly from Twitter via RapidAPI!'
-          : twitterData[0]?.isReal
-          ? '✅ Professional news sources with real Twitter URL format.'
-          : '⚠️ Twitter data estimated due to API restrictions.',
+        tweets: finalTweets.slice(0, 15), // Show up to 15 tweets
+        disclaimer: finalTweets[0]?.fromRapidAPI
+          ? '🔥 REAL tweets fetched directly from Twitter via RapidAPI! (24h filtered)'
+          : finalTweets[0]?.isReal
+          ? '✅ Professional news sources with real Twitter URL format. (24h filtered)'
+          : '⚠️ Twitter data estimated due to API restrictions. (24h filtered)',
       };
     } catch (error) {
       console.error('❌ Error searching Twitter:', error);
@@ -1042,21 +1060,18 @@ Return ONLY the search query, no explanation.`;
    */
   async searchRedditForNews(newsItem) {
     try {
-      console.log(
-        `🔴 Searching ALL of Reddit for: ${newsItem.keywords
-          .slice(0, 2)
-          .join(', ')}`
-      );
+      // 🤖 AI-Powered: Generate contextual search terms from the actual news story
+      const searchTerms = await this.generateContextualSearchTerms(newsItem);
+      console.log(`🔴 Searching ALL of Reddit for: ${searchTerms}`);
 
       const allPosts = [];
-      const searchTerms = newsItem.keywords.slice(0, 2).join(' ');
 
       try {
         // First: Search across ALL of Reddit (not limited to specific subreddits)
-        const globalPosts = await this.searchRedditGlobal(newsItem.keywords);
+        const globalPosts = await this.searchRedditGlobal(searchTerms);
         allPosts.push(...globalPosts);
         console.log(
-          `🌍 Found ${globalPosts.length} posts from global Reddit search`
+          `🌍 Raw global search: ${globalPosts.length} posts (before filtering)`
         );
 
         // Add delay to respect Reddit's rate limits
@@ -1074,7 +1089,7 @@ Return ONLY the search query, no explanation.`;
           try {
             const posts = await this.searchRedditSubredditReal(
               subreddit,
-              newsItem.keywords
+              searchTerms
             );
             // Avoid duplicates by checking if post ID already exists
             const newPosts = posts.filter(
@@ -1082,7 +1097,7 @@ Return ONLY the search query, no explanation.`;
             );
             allPosts.push(...newPosts);
             console.log(
-              `📍 Found ${newPosts.length} new posts from r/${subreddit}`
+              `📍 Raw r/${subreddit}: ${newPosts.length} posts (before filtering)`
             );
 
             // Add delay to respect Reddit's rate limits
@@ -1103,7 +1118,7 @@ Return ONLY the search query, no explanation.`;
           try {
             const posts = await this.searchRedditSubredditReal(
               subreddit,
-              newsItem.keywords
+              searchTerms
             );
             allPosts.push(...posts);
             await this.delay(100);
@@ -1114,9 +1129,23 @@ Return ONLY the search query, no explanation.`;
         }
       }
 
-      // Remove duplicates and sort by upvotes
+      // Remove duplicates and apply intelligent filtering
       const uniquePosts = this.deduplicateRedditPosts(allPosts);
-      const sortedPosts = uniquePosts.sort((a, b) => b.upvotes - a.upvotes);
+      console.log(
+        `📊 Before relevance filtering: ${uniquePosts.length} unique posts`
+      );
+
+      // 🤖 AI-Powered filtering: Only keep relevant posts from last 24 hours
+      const relevantPosts = await this.filterRelevantRecentPosts(
+        uniquePosts,
+        newsItem,
+        searchTerms
+      );
+      console.log(
+        `✅ After AI filtering: ${relevantPosts.length} relevant posts`
+      );
+
+      const sortedPosts = relevantPosts.sort((a, b) => b.upvotes - a.upvotes);
 
       // Filter for good engagement
       const goodPosts = sortedPosts.filter(
@@ -1126,7 +1155,7 @@ Return ONLY the search query, no explanation.`;
       );
 
       console.log(
-        `🔴 Found ${sortedPosts.length} total unique posts, ${goodPosts.length} high-engagement posts across all Reddit`
+        `🔴 FINAL: ${sortedPosts.length} relevant posts (${goodPosts.length} high-engagement) after AI filtering`
       );
 
       const redditSearchUrl = `https://www.reddit.com/search/?q=${encodeURIComponent(
@@ -1179,18 +1208,18 @@ Return ONLY the search query, no explanation.`;
   /**
    * Search across ALL of Reddit using global search API
    */
-  async searchRedditGlobal(keywords) {
+  async searchRedditGlobal(searchTerms) {
     try {
-      const searchQuery = keywords.slice(0, 2).join(' ');
+      const searchQuery = searchTerms;
       const url = 'https://www.reddit.com/search.json';
 
       const response = await axios.get(url, {
         params: {
           q: searchQuery,
-          sort: 'hot',
+          sort: 'new', // Get newest posts first for 24h filtering
           t: 'day', // Posts from last day
           type: 'link', // Only link posts (not comments)
-          limit: 25, // Get more results from global search
+          limit: 50, // Get more results to filter from
         },
         headers: {
           'User-Agent': 'TrendFinder/1.0 (Viral News Detection Bot)',
@@ -1237,19 +1266,19 @@ Return ONLY the search query, no explanation.`;
   /**
    * Search specific Reddit subreddit using REAL Reddit JSON API
    */
-  async searchRedditSubredditReal(subreddit, keywords) {
+  async searchRedditSubredditReal(subreddit, searchTerms) {
     try {
       // Use Reddit's public JSON API - no authentication required
-      const searchQuery = keywords.slice(0, 2).join(' ');
+      const searchQuery = searchTerms;
       const url = `https://www.reddit.com/r/${subreddit}/search.json`;
 
       const response = await axios.get(url, {
         params: {
           q: searchQuery,
           restrict_sr: 1, // Restrict to this subreddit
-          sort: 'hot',
+          sort: 'new', // Get newest posts first for 24h filtering
           t: 'day', // Posts from last day
-          limit: 15, // Increased limit for subreddit search
+          limit: 25, // Get more results to filter from
         },
         headers: {
           'User-Agent': 'TrendFinder/1.0 (Viral News Detection Bot)',
@@ -1291,6 +1320,250 @@ Return ONLY the search query, no explanation.`;
       }
       return [];
     }
+  }
+
+  /**
+   * 🤖 AI-Powered: Check if Reddit post is relevant to the news story
+   */
+  async isRedditPostRelevant(post, newsItem, searchTerms) {
+    try {
+      // Basic keyword relevance check first (fast filter)
+      const postTitle = post.title.toLowerCase();
+      const newsTitle = newsItem.title.toLowerCase();
+      const searchTermsLower = searchTerms.toLowerCase();
+
+      // Extract key terms from search query
+      const searchWords = searchTermsLower
+        .split(' ')
+        .filter((word) => word.length > 2);
+
+      // Check if at least 2 search terms appear in the Reddit post title
+      const matchingWords = searchWords.filter((word) =>
+        postTitle.includes(word)
+      );
+
+      if (matchingWords.length < 2) {
+        console.log(
+          `🚫 Reddit post filtered out (low keyword match): "${post.title}"`
+        );
+        return false;
+      }
+
+      // Check for obvious irrelevant patterns
+      const irrelevantPatterns = [
+        /^(aitah|aita|tifu|eli5|lpt|psa):/i,
+        /^(meta|daily|weekly|monthly)\s/i,
+        /\b(help|advice|question|rant|update)\b/i,
+        /\b(looking for|need|want|seeking)\b/i,
+      ];
+
+      for (const pattern of irrelevantPatterns) {
+        if (pattern.test(postTitle)) {
+          console.log(
+            `🚫 Reddit post filtered out (irrelevant pattern): "${post.title}"`
+          );
+          return false;
+        }
+      }
+
+      // Enhanced AI relevance check for ambiguous cases
+      if (
+        this.openaiClient &&
+        matchingWords.length >= 2 &&
+        matchingWords.length < 4
+      ) {
+        try {
+          const relevancePrompt = `Is this Reddit post title relevant to this news story?
+
+News Story: "${newsItem.title}"
+Reddit Post: "${post.title}"
+
+Context: We're looking for Reddit discussions that are actually about the same topic, event, or person mentioned in the news story.
+
+Reply with only "YES" if highly relevant, or "NO" if not directly related.`;
+
+          const response = await this.openaiClient.chat.completions.create({
+            model: 'gpt-3.5-turbo',
+            messages: [{ role: 'user', content: relevancePrompt }],
+            max_tokens: 10,
+            temperature: 0.1,
+          });
+
+          const aiResponse = response.choices[0]?.message?.content
+            ?.trim()
+            .toUpperCase();
+
+          if (aiResponse === 'NO') {
+            console.log(`🤖 AI filtered out Reddit post: "${post.title}"`);
+            return false;
+          }
+        } catch (error) {
+          console.log('⚠️ AI relevance check failed, using basic filter');
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.log('⚠️ Relevance check error, allowing post');
+      return true;
+    }
+  }
+
+  /**
+   * Filter Reddit posts to only include those from last 24 hours and relevant to news
+   */
+  async filterRelevantRecentPosts(posts, newsItem, searchTerms) {
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const relevantPosts = [];
+
+    for (const post of posts) {
+      // Strict 24-hour timeframe check
+      const postDate = new Date(post.created);
+      if (postDate < twentyFourHoursAgo) {
+        console.log(
+          `⏰ Reddit post filtered out (older than 24h): "${post.title}"`
+        );
+        continue;
+      }
+
+      // AI-powered relevance check
+      const isRelevant = await this.isRedditPostRelevant(
+        post,
+        newsItem,
+        searchTerms
+      );
+      if (isRelevant) {
+        relevantPosts.push(post);
+      }
+    }
+
+    console.log(
+      `🔍 Reddit filtering: ${posts.length} total → ${relevantPosts.length} relevant & recent`
+    );
+    return relevantPosts;
+  }
+
+  /**
+   * 🤖 AI-Powered: Check if Twitter post is relevant to the news story
+   */
+  async isTwitterPostRelevant(tweet, newsItem, searchTerms) {
+    try {
+      // Basic keyword relevance check first (fast filter)
+      const tweetText = tweet.text.toLowerCase();
+      const newsTitle = newsItem.title.toLowerCase();
+      const searchTermsLower = searchTerms.toLowerCase();
+
+      // Extract key terms from search query
+      const searchWords = searchTermsLower
+        .split(' ')
+        .filter((word) => word.length > 2);
+
+      // Check if at least 2 search terms appear in the tweet text
+      const matchingWords = searchWords.filter((word) =>
+        tweetText.includes(word)
+      );
+
+      if (matchingWords.length < 2) {
+        console.log(
+          `🚫 Tweet filtered out (low keyword match): "${tweet.text.substring(
+            0,
+            80
+          )}..."`
+        );
+        return false;
+      }
+
+      // Check for obvious spam patterns
+      const spamPatterns = [
+        /\b(buy now|click here|free|discount|offer|sale)\b/i,
+        /\b(follow me|dm me|check bio|link in bio)\b/i,
+        /\b(crypto|bitcoin|nft|forex|trading)\b/i,
+        /^(rt|retweet)\s/i,
+      ];
+
+      for (const pattern of spamPatterns) {
+        if (pattern.test(tweetText)) {
+          console.log(
+            `🚫 Tweet filtered out (spam pattern): "${tweet.text.substring(
+              0,
+              80
+            )}..."`
+          );
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.log('⚠️ Tweet relevance check error, allowing tweet');
+      return true;
+    }
+  }
+
+  /**
+   * Filter Twitter posts to only include those from last 24 hours and relevant to news
+   */
+  async filterRelevantRecentTweets(tweets, newsItem, searchTerms) {
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const relevantTweets = [];
+
+    for (const tweet of tweets) {
+      // Strict 24-hour timeframe check
+      let tweetDate;
+      try {
+        // Handle different date formats from different Twitter sources
+        if (tweet.created_at) {
+          tweetDate = new Date(tweet.created_at);
+        } else if (tweet.timeAgo) {
+          // Skip tweets with relative time that might be old
+          if (tweet.timeAgo.includes('d ago') && parseInt(tweet.timeAgo) > 1) {
+            console.log(
+              `⏰ Tweet filtered out (older than 24h): "${tweet.text.substring(
+                0,
+                50
+              )}..."`
+            );
+            continue;
+          }
+          // For recent tweets (hours ago), allow them
+          tweetDate = now; // Assume recent if no specific date
+        } else {
+          tweetDate = now; // Default to now if no date info
+        }
+      } catch (error) {
+        console.log(`⚠️ Tweet date parsing error, skipping: ${error.message}`);
+        continue;
+      }
+
+      if (tweetDate < twentyFourHoursAgo) {
+        console.log(
+          `⏰ Tweet filtered out (older than 24h): "${tweet.text.substring(
+            0,
+            50
+          )}..."`
+        );
+        continue;
+      }
+
+      // AI-powered relevance check
+      const isRelevant = await this.isTwitterPostRelevant(
+        tweet,
+        newsItem,
+        searchTerms
+      );
+      if (isRelevant) {
+        relevantTweets.push(tweet);
+      }
+    }
+
+    console.log(
+      `🔍 Twitter filtering: ${tweets.length} total → ${relevantTweets.length} relevant & recent`
+    );
+    return relevantTweets;
   }
 
   /**
