@@ -39,7 +39,8 @@ The **Enhanced Viral Score Algorithm** is a sophisticated dual-system scoring me
 
 **Score Range**: 0-100 points  
 **Platforms Analyzed**: Twitter, Reddit, Content Analysis  
-**Update Frequency**: Real-time
+**Update Frequency**: Real-time  
+**Time Filter**: Last 72 hours for all data sources
 
 ---
 
@@ -418,9 +419,9 @@ VIRAL SCORE = 58/100
 
 ### **Data Sources:**
 
-- **News**: GNews API, MediaStack API (24-hour filtering)
-- **Twitter**: Real tweets with enhanced estimation fallback
-- **Reddit**: Global search across all subreddits
+- **News**: GNews API, MediaStack API (72-hour filtering)
+- **Twitter**: Real tweets with enhanced estimation fallback (72-hour filtering)
+- **Reddit**: Global search across all subreddits (72-hour filtering)
 
 ### **Performance Optimizations:**
 
@@ -471,10 +472,11 @@ VIRAL SCORE = 58/100
 **Effect**: Up to 60% multiplier for high-impact content  
 **Categories**: Breaking news, controversy, celebrity
 
-### ✅ **24-Hour News Filtering**
+### ✅ **72-Hour News Filtering**
 
-**Purpose**: Ensures only recent news from last 24 hours  
+**Purpose**: Ensures only recent news from last 72 hours  
 **APIs**: Both GNews and MediaStack with strict date parameters  
+**Social Media**: Twitter and Reddit data filtered to 72-hour window  
 **Verification**: Client-side filtering for additional accuracy
 
 ### ✅ **Anti-Gaming Measures**
@@ -520,6 +522,7 @@ VIRAL SCORE = 58/100
 - **Content Analysis Fallback**: Used in ~30% of cases
 - **Average Processing Time**: <500ms per news item
 - **API Success Rate**: 95%+ with fallback systems
+- **Data Freshness**: All sources filtered to last 72 hours
 
 ---
 
@@ -557,9 +560,10 @@ The Enhanced Viral Score Algorithm v2.1 represents a significant advancement in 
 3. **Real-Time Performance**: Sub-500ms processing per news item
 4. **Gaming Resistance**: Multiple anti-manipulation measures
 5. **Context Awareness**: Content-intelligent scoring for different news types
-6. **24-Hour Accuracy**: Strict date filtering ensures recent content only
+6. **72-Hour Accuracy**: Strict date filtering ensures recent content only
+7. **Extended Coverage**: 72-hour window captures more viral patterns
 
-The algorithm successfully balances complexity with performance, making it suitable for production environments requiring real-time viral content detection.
+The algorithm successfully balances complexity with performance, making it suitable for production environments requiring real-time viral content detection over an extended timeframe.
 
 ---
 

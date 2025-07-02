@@ -253,7 +253,7 @@ app.get('/api/live-trends/reddit', async (req, res) => {
       timestamp: new Date().toISOString(),
       meta: {
         subreddits: ['r/india', 'r/worldnews', 'r/unpopularopinion'],
-        timeframe: 'Last 12 hours',
+        timeframe: 'Last 72 hours',
         criteria: 'High upvote ratio, growing comments',
       },
     });

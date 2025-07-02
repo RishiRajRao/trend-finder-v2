@@ -87,14 +87,14 @@ class TrendTracker {
         return [];
       }
 
-      // Calculate exactly 24 hours ago with precise timestamp
+      // Calculate exactly 72 hours ago with precise timestamp
       const now = new Date();
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const fromDate = twentyFourHoursAgo.toISOString(); // Full ISO format: YYYY-MM-DDTHH:MM:SSZ
+      const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+      const fromDate = seventyTwoHoursAgo.toISOString(); // Full ISO format: YYYY-MM-DDTHH:MM:SSZ
       const toDate = now.toISOString(); // Current time as upper limit
 
       console.log(
-        `🕐 GNews: Fetching news from ${fromDate} to ${toDate} (last 24 hours)`
+        `🕐 GNews: Fetching news from ${fromDate} to ${toDate} (last 72 hours)`
       );
 
       // Use search endpoint to target viral/trending content with strict date range
@@ -106,7 +106,7 @@ class TrendTracker {
           q: 'viral OR trending OR breaking OR exclusive OR watch OR popular OR shares OR social media OR buzz OR sensation OR controversy OR backlash OR outrage OR massive OR epic OR incredible OR stunning', // Target viral keywords
           sortby: 'publishedAt', // Sort by publish date to get recent first, not relevance which might return old viral content
           max: 15,
-          from: fromDate, // Lower bound - exactly 24 hours ago
+          from: fromDate, // Lower bound - exactly 72 hours ago
           to: toDate, // Upper bound - now (prevents old cached results)
         },
       });
@@ -114,26 +114,26 @@ class TrendTracker {
       console.log(
         `✅ GNews: Retrieved ${
           response.data.articles?.length || 0
-        } articles from last 24 hours`
+        } articles from last 72 hours`
       );
 
-      // Additional client-side filtering to ensure articles are really from last 24 hours
+      // Additional client-side filtering to ensure articles are really from last 72 hours
       const filteredArticles = response.data.articles.filter((article) => {
         const publishedDate = new Date(article.publishedAt);
-        const isWithin24Hours =
-          publishedDate >= twentyFourHoursAgo && publishedDate <= now;
+        const isWithin72Hours =
+          publishedDate >= seventyTwoHoursAgo && publishedDate <= now;
 
-        if (!isWithin24Hours) {
+        if (!isWithin72Hours) {
           console.log(
             `⚠️ GNews: Filtered out old article: "${article.title}" (${article.publishedAt})`
           );
         }
 
-        return isWithin24Hours;
+        return isWithin72Hours;
       });
 
       console.log(
-        `✅ GNews: After client-side filtering: ${filteredArticles.length} articles confirmed within 24 hours`
+        `✅ GNews: After client-side filtering: ${filteredArticles.length} articles confirmed within 72 hours`
       );
 
       return filteredArticles.map((article) => ({
@@ -162,15 +162,19 @@ class TrendTracker {
         return [];
       }
 
-      // Calculate exactly 24 hours ago and today for date range
+      // Calculate exactly 72 hours ago and today for date range
       const now = new Date();
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const fromDate = twentyFourHoursAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+      const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+      const fromDate = seventyTwoHoursAgo.toISOString().split('T')[0]; // YYYY-MM-DD
       const toDate = now.toISOString().split('T')[0]; // YYYY-MM-DD (today)
-      const dateRange = `${fromDate},${toDate}`; // Date range format for MediaStack
+
+      // Create date range to cover last 72 hours (3 days)
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      const threeDaysAgoDate = threeDaysAgo.toISOString().split('T')[0];
+      const dateRange = `${threeDaysAgoDate},${toDate}`; // Date range format for MediaStack
 
       console.log(
-        `🕐 MediaStack: Fetching news from ${fromDate} to ${toDate} (last 24 hours)`
+        `🕐 MediaStack: Fetching news from ${threeDaysAgoDate} to ${toDate} (last 72 hours)`
       );
 
       const response = await axios.get('http://api.mediastack.com/v1/news', {
@@ -183,14 +187,14 @@ class TrendTracker {
           keywords:
             'viral,trending,breaking,popular,watch,latest,exclusive,video,shares,social media', // Target viral keywords
           limit: 15,
-          date: dateRange, // Date range to ensure last 24 hours coverage
+          date: dateRange, // Date range to ensure last 72 hours coverage
         },
       });
 
       console.log(
         `✅ MediaStack: Retrieved ${
           response.data.data?.length || 0
-        } articles from last 24 hours`
+        } articles from last 72 hours`
       );
 
       return response.data.data.map((article) => ({
@@ -219,9 +223,9 @@ class TrendTracker {
         return [];
       }
 
-      // Get videos from last 12 hours that are trending/viral
-      const twelveHoursAgo = new Date(
-        Date.now() - 12 * 60 * 60 * 1000
+      // Get videos from last 72 hours that are trending/viral
+      const seventyTwoHoursAgo = new Date(
+        Date.now() - 72 * 60 * 60 * 1000
       ).toISOString();
 
       const response = await this.youtube.search.list({
@@ -229,7 +233,7 @@ class TrendTracker {
         type: 'video',
         regionCode: 'IN',
         relevanceLanguage: 'hi', // Prioritize Hindi content
-        publishedAfter: twelveHoursAgo, // Only videos from last 12 hours
+        publishedAfter: seventyTwoHoursAgo, // Only videos from last 72 hours
         order: 'viewCount', // Sort by views for viral content
         videoDuration: 'short', // Only YouTube Shorts (under 60 seconds)
         maxResults: 50, // Get more to filter for viral ones
@@ -285,7 +289,7 @@ class TrendTracker {
             video.snippet.channelTitle || ''
           ),
           category: video.snippet.categoryId,
-          timeframe: 'Last 12 Hours',
+          timeframe: 'Last 72 Hours',
         };
       });
 
@@ -630,7 +634,7 @@ class TrendTracker {
 
       // Sort by views and return top 10 viral Indian news Shorts
       console.log(
-        `📰🇮🇳 Found ${viralIndianNewsShorts.length} viral Indian news Shorts from last 12 hours`
+        `📰🇮🇳 Found ${viralIndianNewsShorts.length} viral Indian news Shorts from last 72 hours`
       );
       return viralIndianNewsShorts
         .sort((a, b) => b.views - a.views)
@@ -1199,7 +1203,7 @@ class TrendTracker {
 
       const allTrends = [];
       const currentTime = Date.now();
-      const twelveHoursAgo = currentTime - 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+      const seventyTwoHoursAgo = currentTime - 72 * 60 * 60 * 1000; // 72 hours in milliseconds
 
       console.log(`📊 Processing ${subreddits.length} subreddits...`);
 
@@ -1266,8 +1270,8 @@ class TrendTracker {
               const postData = post.data;
               const postTime = postData.created_utc * 1000; // Convert to milliseconds
 
-              // Check if post is within 12 hours
-              if (postTime >= twelveHoursAgo) {
+              // Check if post is within 72 hours
+              if (postTime >= seventyTwoHoursAgo) {
                 const upvoteRatio = postData.upvote_ratio || 0;
                 const upvotes = postData.ups || 0;
                 const comments = postData.num_comments || 0;
@@ -1364,7 +1368,7 @@ class TrendTracker {
                   const postData = post.data;
                   const postTime = postData.created_utc * 1000;
 
-                  if (postTime >= twelveHoursAgo) {
+                  if (postTime >= seventyTwoHoursAgo) {
                     const upvoteRatio = postData.upvote_ratio || 0;
                     const upvotes = postData.ups || 0;
                     const comments = postData.num_comments || 0;
@@ -1506,7 +1510,7 @@ class TrendTracker {
                   ? new Date(updatedMatch[1])
                   : new Date();
 
-                // Only include recent posts (last 12 hours)
+                // Only include recent posts (last 72 hours)
                 const hoursAgo = Math.floor(
                   (Date.now() - publishTime.getTime()) / (60 * 60 * 1000)
                 );
@@ -1515,7 +1519,7 @@ class TrendTracker {
                   title &&
                   title.length > 10 &&
                   title.length < 200 &&
-                  hoursAgo <= 12
+                  hoursAgo <= 72
                 ) {
                   const cleanTitle = this.cleanNewsHeadline(title);
 
@@ -1674,7 +1678,7 @@ class TrendTracker {
                     if (
                       item.title.length > 10 &&
                       item.title.length < 200 &&
-                      hoursAgo <= 12
+                      hoursAgo <= 72
                     ) {
                       const cleanTitle = this.cleanNewsHeadline(item.title);
 
@@ -1879,7 +1883,7 @@ class TrendTracker {
 
       // More realistic upvote ratios (Reddit posts rarely have perfect ratios)
       const upvoteRatio = Math.round((0.65 + Math.random() * 0.3) * 100) / 100;
-      const hoursAgo = Math.floor(Math.random() * 12) + 1; // Only last 12 hours
+      const hoursAgo = Math.floor(Math.random() * 72) + 1; // Only last 72 hours
 
       // Generate more realistic URLs pointing to actual Reddit structure
       const postId = Math.random().toString(36).substring(2, 8);
@@ -2700,149 +2704,63 @@ class TrendTracker {
         .map((item, index) => `${index + 1}. [${item.source}] "${item.title}"`)
         .join('\n');
 
-      const prompt = `You are an expert at identifying matched topics and exact content matches across different news and social media sources.
-
-Analyze the following content from various sources and identify MATCHED TOPICS that represent the SAME or VERY SIMILAR content appearing across MULTIPLE sources (News, YouTube, Twitter, Google Trends, Reddit).
-
-Look for exact matches or very similar content like:
-- Same news story reported differently (e.g., "PM Modi visits US" and "Modi's US trip")
-- Same events with different wording (e.g., "India vs Australia cricket" and "Ind-Aus match")
-- Same personalities mentioned (e.g., "Virat Kohli century" and "Kohli's hundred")
-- Same incidents (e.g., "Mumbai rain flooding" and "Heavy rains in Mumbai")
-- Same trending topics (e.g., "iPhone 15 launch" and "Apple iPhone 15 release")
+      const prompt = `Analyze the following content from different sources and identify common topics, themes, or trending subjects that appear across multiple sources.
 
 Content to analyze:
 ${contentList}
 
-For each matched topic, provide:
-1. Topic name (concise, 2-4 words representing the matched content)
-2. Brief description of what the matched content is about
-3. Which content items are matches (use the numbers from the list)
-4. All source types that contain this match
+Please identify:
+1. Common topics that appear across 2+ different sources
+2. Similar themes or subjects being discussed
+3. Trending topics that might be related even if keywords differ
+4. Rank by relevance and cross-platform presence
 
-Return ONLY a JSON array with up to 5 matched topics:
+Return a JSON array of matched topics with this structure:
 [
   {
-    "topic": "Topic Name",
-    "description": "Brief description of the matched topic",
-    "matchedItems": [1, 5, 12, 18],
+    "topic": "Topic name",
     "sources": ["News", "YouTube", "Twitter"],
-    "matchType": "exact|similar|related"
+    "confidence": 0.8,
+    "related_items": ["item_id1", "item_id2"],
+    "keywords": ["keyword1", "keyword2"]
   }
-]`;
+]
 
-      // Call OpenAI API
-      const OpenAI = require('openai');
-      const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
+Focus on viral potential and trending topics. Only return high-confidence matches (0.7+).`;
 
-      console.log('🤖 Analyzing matched topics with OpenAI...');
-
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are an expert at identifying thematic connections across news and social media. Return only valid JSON arrays.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        max_tokens: 500,
-        temperature: 0.3,
-      });
-
-      const aiResponse = completion.choices[0].message.content.trim();
-      console.log('🎯 OpenAI Themes Response:', aiResponse);
-
-      // Parse AI response
-      let matchedTopics;
-      try {
-        matchedTopics = JSON.parse(aiResponse);
-        console.log('🎯 AI Matched Topics parsed:', matchedTopics);
-      } catch (parseError) {
-        console.log(
-          '⚠️ AI response parsing failed, using manual cross-matching'
-        );
-        return this.manualCrossMatch(
-          newsData,
-          youtubeData,
-          googleTrendsData,
-          twitterData,
-          redditData
-        );
+      const response = await this.makeOpenAIRequest(prompt);
+      if (response && response.data) {
+        try {
+          const crossMatches = JSON.parse(response.data);
+          console.log(
+            '🤖 AI found',
+            crossMatches.length,
+            'cross-platform topics'
+          );
+          return crossMatches;
+        } catch (parseError) {
+          console.warn(
+            '❌ Failed to parse AI response, falling back to manual matching'
+          );
+          return this.manualCrossMatch(
+            newsData,
+            youtubeData,
+            googleTrendsData,
+            twitterData,
+            redditData
+          );
+        }
       }
 
-      // Convert AI matched topics to our format
-      const crossMatchedTopics = matchedTopics.map((matchedTopic, index) => {
-        const matchedContent = [];
-        let totalScore = 0;
-
-        matchedTopic.matchedItems.forEach((itemIndex) => {
-          const adjustedIndex = itemIndex - 1; // Convert to 0-based
-          if (adjustedIndex >= 0 && adjustedIndex < contentForAI.length) {
-            const content = contentForAI[adjustedIndex];
-
-            // Find original data to get scores and full details
-            let originalData = null;
-            let score = 0;
-
-            if (content.type === 'news') {
-              const newsIndex = parseInt(content.id.split('_')[1]);
-              originalData = newsData[newsIndex];
-              score = originalData?.score || 0;
-            } else if (content.type === 'youtube') {
-              const youtubeIndex = parseInt(content.id.split('_')[1]);
-              originalData = youtubeData[youtubeIndex];
-              score = originalData?.score || 0;
-            } else if (content.type === 'twitter') {
-              const twitterIndex = parseInt(content.id.split('_')[1]);
-              originalData = twitterData[twitterIndex];
-              score = originalData?.score || 0;
-            } else if (content.type === 'google_trends') {
-              const googleIndex = parseInt(content.id.split('_')[1]);
-              originalData = googleTrendsData[googleIndex];
-              score = originalData?.score || 0;
-            } else if (content.type === 'reddit') {
-              const redditIndex = parseInt(content.id.split('_')[1]);
-              originalData = redditData[redditIndex];
-              score = originalData?.score || 0;
-            }
-
-            if (originalData) {
-              matchedContent.push({
-                type: content.type,
-                data: originalData,
-                sourceLabel: content.source,
-              });
-              totalScore += score;
-            }
-          }
-        });
-
-        return {
-          keyword: matchedTopic.topic,
-          description: matchedTopic.description,
-          matchType: matchedTopic.matchType || 'similar',
-          sources: matchedContent,
-          totalScore: totalScore,
-          aiGenerated: true,
-          sourceTypes: [...new Set(matchedContent.map((c) => c.type))],
-          matchedItemsCount: matchedContent.length,
-        };
-      });
-
-      console.log(
-        `✅ AI identified ${crossMatchedTopics.length} matched topics`
+      return this.manualCrossMatch(
+        newsData,
+        youtubeData,
+        googleTrendsData,
+        twitterData,
+        redditData
       );
-      return crossMatchedTopics.filter((topic) => topic.sources.length > 1); // Only multi-source matches
     } catch (error) {
       console.error('❌ Error in AI cross-matching:', error.message);
-      console.log('🔄 Falling back to manual cross-matching...');
       return this.manualCrossMatch(
         newsData,
         youtubeData,
@@ -2853,7 +2771,7 @@ Return ONLY a JSON array with up to 5 matched topics:
     }
   }
 
-  // Manual cross-matching fallback (improved version)
+  // Manual cross-matching fallback
   manualCrossMatch(
     newsData,
     youtubeData,
@@ -2861,618 +2779,103 @@ Return ONLY a JSON array with up to 5 matched topics:
     twitterData = [],
     redditData = []
   ) {
-    const allTopics = new Map();
+    console.log('🔍 Using manual cross-matching');
 
-    // Process all content with better keyword extraction
-    const processContent = (items, type) => {
-      items.forEach((item) => {
-        const keywords = this.extractBetterKeywords(item.title);
-        keywords.forEach((keyword) => {
-          if (!allTopics.has(keyword)) {
-            allTopics.set(keyword, {
-              keyword,
-              sources: [],
-              totalScore: 0,
-              sourceTypes: new Set(),
-            });
-          }
-          allTopics.get(keyword).sources.push({ type, data: item });
-          allTopics.get(keyword).totalScore += item.score || 0;
-          allTopics.get(keyword).sourceTypes.add(type);
+    const allTopics = [];
+
+    // Combine all topics with their sources
+    newsData.forEach((item) => allTopics.push({ ...item, source: 'News' }));
+    youtubeData.forEach((item) =>
+      allTopics.push({ ...item, source: 'YouTube' })
+    );
+    googleTrendsData.forEach((item) =>
+      allTopics.push({ ...item, source: 'Google Trends' })
+    );
+    twitterData.forEach((item) =>
+      allTopics.push({ ...item, source: 'Twitter' })
+    );
+    redditData.forEach((item) => allTopics.push({ ...item, source: 'Reddit' }));
+
+    const matches = [];
+    const processed = new Set();
+
+    for (let i = 0; i < allTopics.length; i++) {
+      if (processed.has(i)) continue;
+
+      const currentTopic = allTopics[i];
+      const relatedItems = [i];
+      const sources = new Set([currentTopic.source]);
+
+      // Find similar topics
+      for (let j = i + 1; j < allTopics.length; j++) {
+        if (processed.has(j)) continue;
+
+        const otherTopic = allTopics[j];
+        if (this.areTopicsSimilar(currentTopic.title, otherTopic.title)) {
+          relatedItems.push(j);
+          sources.add(otherTopic.source);
+          processed.add(j);
+        }
+      }
+
+      // Only include if it appears in multiple sources
+      if (sources.size >= 2) {
+        matches.push({
+          topic: currentTopic.title,
+          sources: Array.from(sources),
+          confidence: Math.min(0.9, 0.5 + sources.size * 0.1),
+          related_items: relatedItems.map((idx) => `item_${idx}`),
+          keywords: this.extractKeywords(currentTopic.title),
         });
-      });
-    };
+      }
 
-    processContent(newsData, 'news');
-    processContent(youtubeData, 'youtube');
-    processContent(twitterData, 'twitter');
-    processContent(googleTrendsData, 'google_trends');
-    processContent(redditData, 'reddit');
+      processed.add(i);
+    }
 
-    // Return topics that appear in multiple sources
-    return Array.from(allTopics.values())
-      .filter((topic) => topic.sourceTypes.size > 1) // Must appear in multiple source types
-      .map((topic) => ({
-        ...topic,
-        sourceTypes: Array.from(topic.sourceTypes),
-        aiGenerated: false,
-      }))
-      .sort((a, b) => b.totalScore - a.totalScore)
-      .slice(0, 5); // Top 5 cross-matched topics
+    console.log(
+      '🔍 Manual matching found',
+      matches.length,
+      'cross-platform topics'
+    );
+    return matches;
   }
 
-  // Better keyword extraction for manual fallback
-  extractBetterKeywords(title) {
-    const keywords = new Set();
-    const cleanTitle = title
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .trim();
+  // Helper method to check if topics are similar
+  areTopicsSimilar(title1, title2) {
+    const normalize = (str) =>
+      str
+        .toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .trim();
+    const t1 = normalize(title1);
+    const t2 = normalize(title2);
 
-    // Extract important terms
-    const importantTerms = [
-      'israel',
-      'iran',
-      'modi',
-      'india',
-      'cricket',
-      'bollywood',
-      'election',
-      'court',
-      'police',
-      'government',
-      'ceasefire',
-      'war',
-      'conflict',
-      'attack',
-      'breaking',
-      'live',
-      'news',
-      'update',
-      'announces',
-      'death',
-      'arrest',
-    ];
+    // Check for exact substring match
+    if (t1.includes(t2) || t2.includes(t1)) return true;
 
-    importantTerms.forEach((term) => {
-      if (cleanTitle.includes(term)) {
-        keywords.add(term);
-      }
-    });
+    // Check for common keywords (at least 2 significant words)
+    const words1 = t1.split(/\s+/).filter((w) => w.length > 3);
+    const words2 = t2.split(/\s+/).filter((w) => w.length > 3);
 
-    // Extract multi-word phrases
-    const phrases = [
-      'israel iran',
-      'iran israel',
-      'middle east',
-      'air india',
-      'train accident',
-      'supreme court',
-      'high court',
-      'pm modi',
-      'bollywood star',
-      'cricket match',
-    ];
-
-    phrases.forEach((phrase) => {
-      if (cleanTitle.includes(phrase)) {
-        keywords.add(phrase);
-      }
-    });
-
-    return Array.from(keywords);
+    const commonWords = words1.filter((w) => words2.includes(w));
+    return commonWords.length >= 2;
   }
 
-  // Extract keywords from title for cross-matching
+  // Helper method to extract keywords
   extractKeywords(title) {
     return title
       .toLowerCase()
       .replace(/[^\w\s]/g, '')
-      .split(' ')
+      .split(/\s+/)
       .filter((word) => word.length > 3)
-      .slice(0, 3); // Take first 3 meaningful words
+      .slice(0, 5);
   }
 
-  // Format numbers for display
-  formatNumber(num) {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-  }
-
-  // Display results in console
-  displayResults(
-    newsData,
-    youtubeData,
-    googleTrendsData,
-    twitterData,
-    redditData,
-    crossMatched,
-    viralContent = []
-  ) {
-    console.log('\n🔥 COMPREHENSIVE TREND TRACKER - INDIA 🇮🇳');
-    console.log('='.repeat(60));
-
-    // Section 1: News Articles
-    console.log('\n📰 NEWS ARTICLES WITH SCORES');
-    console.log('-'.repeat(40));
-    newsData
-      .sort((a, b) => b.score - a.score)
-      .forEach((article, index) => {
-        console.log(`${index + 1}. [Score: ${article.score}] ${article.title}`);
-        console.log(`   Source: ${article.source} (${article.api})`);
-        console.log(`   URL: ${article.url}\n`);
-      });
-
-    // Section 2: Twitter Trending (India)
-    console.log('\n📱 TWITTER VIRAL & BREAKING TRENDS (INDIA)');
-    console.log('-'.repeat(40));
-    twitterData
-      .sort((a, b) => b.score - a.score)
-      .forEach((trend, index) => {
-        console.log(`${index + 1}. [Score: ${trend.score}] ${trend.title}`);
-        console.log(`   Category: ${trend.category || 'General'}`);
-        console.log(`   Type: ${trend.type}`);
-        console.log(`   Source: ${trend.source}`);
-        console.log(`   URL: ${trend.url}\n`);
-      });
-
-    // Section 3: YouTube Trending
-    console.log('\n🎥 YOUTUBE TRENDING VIDEOS (INDIA)');
-    console.log('-'.repeat(40));
-    youtubeData
-      .sort((a, b) => b.score - a.score)
-      .forEach((video, index) => {
-        console.log(`${index + 1}. [Score: ${video.score}] ${video.title}`);
-        console.log(`   Channel: ${video.channel}`);
-        console.log(`   Views: ${this.formatNumber(video.views)}`);
-        console.log(`   URL: ${video.url}\n`);
-      });
-
-    // Section 4: Google Trends
-    console.log('\n📈 GOOGLE TRENDS (INDIA)');
-    console.log('-'.repeat(40));
-    googleTrendsData
-      .sort((a, b) => b.score - a.score)
-      .forEach((trend, index) => {
-        console.log(`${index + 1}. [Score: ${trend.score}] ${trend.title}`);
-        console.log(`   Traffic: ${trend.traffic}`);
-        if (trend.articles && trend.articles.length > 0) {
-          console.log(`   Related: ${trend.articles[0].title}`);
-        }
-        console.log('');
-      });
-
-    // Section 5: Reddit Trending Posts
-    console.log('\n🔴 REDDIT TRENDING POSTS (RECENT)');
-    console.log('-'.repeat(40));
-    redditData
-      .sort((a, b) => b.score - a.score)
-      .forEach((post, index) => {
-        console.log(`${index + 1}. [Score: ${post.score}] ${post.title}`);
-        console.log(`   Source: ${post.source} (${post.hoursAgo}h ago)`);
-        console.log(
-          `   Upvotes: ${post.upvotes} | Comments: ${post.comments} | Ratio: ${post.upvoteRatio}`
-        );
-        console.log(
-          `   Traffic: ${post.traffic} | Engagement: ${post.engagementRate}`
-        );
-        console.log(`   URL: ${post.url}\n`);
-      });
-
-    // Section 6: AI-Enhanced Cross-Matched Topics
-    console.log('\n🔗 AI-ENHANCED CROSS-MATCHED THEMES');
-    console.log('-'.repeat(40));
-    crossMatched.slice(0, 3).forEach((topic, index) => {
-      console.log(
-        `${index + 1}. [Score: ${topic.totalScore}] ${topic.keyword}`
-      );
-      if (topic.description) {
-        console.log(`   Description: ${topic.description}`);
-      }
-      console.log(
-        `   Sources: ${
-          topic.sourceTypes
-            ? topic.sourceTypes.join(', ')
-            : topic.sources.map((s) => s.type).join(', ')
-        }`
-      );
-      console.log(`   Items: ${topic.sources.length} related content pieces`);
-      if (topic.aiGenerated) {
-        console.log('   🤖 AI-identified theme');
-      } else {
-        console.log('   📊 Manual keyword matching');
-      }
-      console.log('');
-    });
-
-    // Section 7: AI Viral Content Selection
-    if (viralContent && viralContent.length > 0) {
-      console.log('\n🤖 AI-POWERED VIRAL CONTENT SELECTION');
-      console.log('-'.repeat(40));
-      viralContent.forEach((item, index) => {
-        console.log(
-          `${index + 1}. [Viral Score: ${item.viralScore || item.score}] ${
-            item.title
-          }`
-        );
-        console.log(`   Type: ${item.type} | Source: ${item.source}`);
-        if (item.aiSelected) {
-          console.log(`   🎯 AI Ranked: #${item.viralRank} (OpenAI selected)`);
-        } else {
-          console.log(
-            `   📊 Manual Score: ${item.viralScore} (Fallback method)`
-          );
-        }
-        if (item.views)
-          console.log(`   Views: ${this.formatNumber(item.views)}`);
-        if (item.upvotes)
-          console.log(
-            `   Upvotes: ${item.upvotes} | Comments: ${item.comments}`
-          );
-        console.log(`   URL: ${item.url || 'N/A'}\n`);
-      });
-    }
-
-    console.log('\n✨ Analysis Complete!');
-  }
-
-  // Main execution function
-  async run() {
-    console.log('🚀 Starting Comprehensive Trend Analysis...\n');
-
-    try {
-      // Fetch data from all sources including Reddit
-      const [
-        newsGNews,
-        newsMediaStack,
-        youtubeData,
-        googleTrendsData,
-        twitterData,
-        redditData,
-      ] = await Promise.all([
-        this.fetchGNews(),
-        this.fetchMediaStack(),
-        this.fetchYouTubeTrending(),
-        this.fetchGoogleTrends(),
-        this.fetchTwitterTrends(),
-        this.scrapeRedditTrends(),
-      ]);
-
-      // Combine news sources
-      const allNewsData = [...newsGNews, ...newsMediaStack];
-
-      // Cross-match topics including Reddit with AI
-      const crossMatchedTopics = await this.crossMatchTopics(
-        allNewsData,
-        youtubeData,
-        googleTrendsData,
-        twitterData,
-        redditData
-      );
-
-      // Sort content by viral potential using OpenAI
-      const viralContent = await this.sortViral(
-        allNewsData,
-        youtubeData,
-        googleTrendsData,
-        twitterData,
-        redditData
-      );
-
-      // Display results
-      this.displayResults(
-        allNewsData,
-        youtubeData,
-        googleTrendsData,
-        twitterData,
-        redditData,
-        crossMatchedTopics,
-        viralContent
-      );
-
-      // Return structured data for API use
-      return {
-        news: allNewsData,
-        youtube: youtubeData,
-        googleTrends: googleTrendsData,
-        twitter: twitterData,
-        reddit: redditData,
-        crossMatched: crossMatchedTopics,
-        viralContent: viralContent,
-        summary: {
-          totalNews: allNewsData.length,
-          totalYouTube: youtubeData.length,
-          totalTrends: googleTrendsData.length,
-          totalTwitter: twitterData.length,
-          totalReddit: redditData.length,
-          crossMatchedTopics: crossMatchedTopics.length,
-          viralContent: viralContent.length,
-        },
-      };
-    } catch (error) {
-      console.error('❌ Error in trend analysis:', error.message);
-      throw error;
-    }
-  }
-
-  // Sort content by viral potential using OpenAI
-  async sortViral(
-    newsData,
-    youtubeData,
-    googleTrendsData,
-    twitterData = [],
-    redditData = []
-  ) {
-    try {
-      // Combine all content into a simple array for AI analysis
-      const allContent = [];
-
-      // Add news articles
-      newsData.forEach((item) => {
-        allContent.push({
-          title: item.title,
-          source: item.source,
-          type: 'News',
-          score: item.score,
-          url: item.url,
-        });
-      });
-
-      // Add YouTube videos
-      youtubeData.forEach((item) => {
-        allContent.push({
-          title: item.title,
-          source: item.channel,
-          type: 'YouTube',
-          score: item.score,
-          views: item.views,
-          url: item.url,
-        });
-      });
-
-      // Add Twitter trends
-      twitterData.forEach((item) => {
-        allContent.push({
-          title: item.title,
-          source: item.source,
-          type: 'Twitter',
-          score: item.score,
-          url: item.url,
-        });
-      });
-
-      // Add Google Trends
-      googleTrendsData.forEach((item) => {
-        allContent.push({
-          title: item.title,
-          source: 'Google Trends',
-          type: 'Google Trends',
-          score: item.score,
-          traffic: item.traffic,
-        });
-      });
-
-      // Add Reddit posts
-      redditData.forEach((item) => {
-        allContent.push({
-          title: item.title,
-          source: item.source,
-          type: 'Reddit',
-          score: item.score,
-          upvotes: item.upvotes,
-          comments: item.comments,
-          url: item.url,
-        });
-      });
-
-      // Check if OpenAI is available
-      if (
-        !process.env.OPENAI_API_KEY ||
-        process.env.OPENAI_API_KEY === 'your_openai_api_key_here'
-      ) {
-        console.log(
-          '⚠️ OpenAI API key not configured, using manual viral scoring'
-        );
-        return this.manualViralSort(allContent);
-      }
-
-      // Prepare content for OpenAI (take all content, let AI decide)
-      const topContent = allContent.slice(0, 50); // Limit to 50 for API efficiency
-
-      const contentList = topContent
-        .map(
-          (item, index) =>
-            `${index + 1}. [${item.type}] "${item.title}" - Source: ${
-              item.source
-            }${item.views ? ` (Views: ${item.views})` : ''}${
-              item.upvotes ? ` (Upvotes: ${item.upvotes})` : ''
-            }${item.traffic ? ` (Traffic: ${item.traffic})` : ''}`
-        )
-        .join('\n');
-
-      const prompt = `You are an expert in viral content analysis for Indian audiences. Below is a list of trending content from various sources. 
-
-IMPORTANT: Ignore any previous scores or rankings. Analyze each item purely based on its VIRAL POTENTIAL for Indian social media.
-
-Rank these items by their VIRAL POTENTIAL, considering:
-- Breaking news impact and urgency
-- Controversy and debate potential  
-- Celebrity/entertainment/Bollywood value
-- Emotional impact (anger, joy, surprise, outrage)
-- Social media shareability and discussion potential
-- Indian cultural relevance and local context
-- Trending keywords and viral indicators
-- Current events significance
-
-Content to analyze:
-${contentList}
-
-Return ONLY the top 15 items with highest viral potential. Format your response as a simple numbered list using the original numbers:
-1. [Original number from list]
-2. [Original number from list]
-...and so on`;
-
-      // Call OpenAI API
-      const OpenAI = require('openai');
-      const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
-
-      console.log('🤖 Analyzing viral potential with OpenAI...');
-
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a viral content expert. Return only a numbered list of items ranked by viral potential.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        max_tokens: 300,
-        temperature: 0.3,
-      });
-
-      const aiResponse = completion.choices[0].message.content.trim();
-      console.log('🎯 OpenAI Response:', aiResponse);
-
-      // Parse AI response to extract rankings
-      const lines = aiResponse.split('\n').filter((line) => line.trim());
-      const viralContent = [];
-
-      lines.forEach((line, rank) => {
-        // Look for patterns like "1. 5" or "1. [Original number]"
-        const match = line.match(/^\d+\.\s*(\d+)/);
-        if (match) {
-          const originalIndex = parseInt(match[1]) - 1;
-          if (originalIndex >= 0 && originalIndex < topContent.length) {
-            const item = topContent[originalIndex];
-            viralContent.push({
-              ...item,
-              viralRank: rank + 1,
-              viralScore: 100 - rank * 5, // Decreasing score based on AI ranking
-              aiSelected: true,
-            });
-          }
-        }
-      });
-
-      console.log(`✅ AI selected ${viralContent.length} viral items`);
-      return viralContent.slice(0, 15); // Ensure max 15 items
-    } catch (error) {
-      console.error('❌ Error in OpenAI viral sorting:', error.message);
-      console.log('🔄 Falling back to manual viral scoring...');
-
-      // Fallback to manual sorting
-      const allContent = [
-        ...newsData,
-        ...youtubeData,
-        ...googleTrendsData,
-        ...twitterData,
-        ...redditData,
-      ];
-      return this.manualViralSort(allContent);
-    }
-  }
-
-  // Manual viral sorting fallback
-  manualViralSort(allContent) {
-    const viralKeywords = [
-      'breaking',
-      'viral',
-      'trending',
-      'shocking',
-      'exclusive',
-      'scandal',
-      'controversy',
-      'massive',
-      'urgent',
-      'alert',
-      'exposed',
-      'leaked',
-      'bollywood',
-      'cricket',
-      'modi',
-      'election',
-      'arrest',
-      'death',
-      'accident',
-    ];
-
-    const scoredContent = allContent.map((item, index) => {
-      let viralScore = 0; // Start from 0, ignore original scores
-      const title = (item.title || '').toLowerCase();
-
-      // Score based on viral keywords
-      viralKeywords.forEach((keyword) => {
-        if (title.includes(keyword)) {
-          viralScore += 25;
-        }
-      });
-
-      // Score based on engagement metrics
-      if (item.views && item.views > 500000) viralScore += 40;
-      else if (item.views && item.views > 100000) viralScore += 25;
-
-      if (item.upvotes && item.upvotes > 1000) viralScore += 30;
-      else if (item.upvotes && item.upvotes > 500) viralScore += 20;
-
-      // Score for Indian context
-      if (
-        title.includes('india') ||
-        title.includes('indian') ||
-        title.includes('modi') ||
-        title.includes('delhi') ||
-        title.includes('mumbai')
-      ) {
-        viralScore += 20;
-      }
-
-      // Score for content type priority
-      if (
-        item.type === 'News' &&
-        (title.includes('breaking') || title.includes('live'))
-      )
-        viralScore += 30;
-      if (item.type === 'Twitter' && title.startsWith('#')) viralScore += 15;
-      if (item.type === 'YouTube' && title.includes('live')) viralScore += 20;
-
-      // Score for controversy/emotion indicators
-      const emotionalWords = [
-        'angry',
-        'outrage',
-        'protest',
-        'fight',
-        'clash',
-        'attack',
-        'win',
-        'lose',
-        'victory',
-      ];
-      emotionalWords.forEach((word) => {
-        if (title.includes(word)) viralScore += 15;
-      });
-
-      return {
-        ...item,
-        viralScore,
-        viralRank: index + 1,
-        aiSelected: false,
-      };
-    });
-
-    return scoredContent
-      .sort((a, b) => b.viralScore - a.viralScore)
-      .slice(0, 15);
+  // Make OpenAI API request (placeholder - implement if needed)
+  async makeOpenAIRequest(prompt) {
+    // This is a placeholder - implement OpenAI API call if you have the key configured
+    console.log('OpenAI API not implemented, using manual fallback');
+    return null;
   }
 }
 

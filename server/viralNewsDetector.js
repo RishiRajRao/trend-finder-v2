@@ -249,14 +249,14 @@ class ViralNewsDetectorV3 {
         return [];
       }
 
-      // Calculate exactly 24 hours ago with precise timestamp
+      // Calculate exactly 72 hours ago with precise timestamp
       const now = new Date();
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const fromDate = twentyFourHoursAgo.toISOString(); // Full ISO format: YYYY-MM-DDTHH:MM:SSZ
+      const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+      const fromDate = seventyTwoHoursAgo.toISOString(); // Full ISO format: YYYY-MM-DDTHH:MM:SSZ
       const toDate = now.toISOString(); // Current time as upper limit
 
       console.log(
-        `🕐 GNews: Fetching news from ${fromDate} to ${toDate} (last 24 hours)`
+        `🕐 GNews: Fetching news from ${fromDate} to ${toDate} (last 72 hours)`
       );
 
       // Use search endpoint to target viral/trending content with strict date range
@@ -268,7 +268,7 @@ class ViralNewsDetectorV3 {
           q: 'viral OR trending OR breaking OR exclusive OR watch OR popular OR shares OR social media OR buzz OR sensation OR controversy OR backlash OR outrage OR massive OR epic OR incredible OR stunning', // Target viral keywords
           sortby: 'publishedAt', // Sort by publish date to get recent first, not relevance which might return old viral content
           max: 10,
-          from: fromDate, // Lower bound - exactly 24 hours ago
+          from: fromDate, // Lower bound - exactly 72 hours ago
           to: toDate, // Upper bound - now (prevents old cached results)
         },
       });
@@ -276,26 +276,26 @@ class ViralNewsDetectorV3 {
       console.log(
         `✅ GNews: Retrieved ${
           response.data.articles?.length || 0
-        } articles from last 24 hours`
+        } articles from last 72 hours`
       );
 
-      // Additional client-side filtering to ensure articles are really from last 24 hours
+      // Additional client-side filtering to ensure articles are really from last 72 hours
       const filteredArticles = response.data.articles.filter((article) => {
         const publishedDate = new Date(article.publishedAt);
-        const isWithin24Hours =
-          publishedDate >= twentyFourHoursAgo && publishedDate <= now;
+        const isWithin72Hours =
+          publishedDate >= seventyTwoHoursAgo && publishedDate <= now;
 
-        if (!isWithin24Hours) {
+        if (!isWithin72Hours) {
           console.log(
             `⚠️ GNews: Filtered out old article: "${article.title}" (${article.publishedAt})`
           );
         }
 
-        return isWithin24Hours;
+        return isWithin72Hours;
       });
 
       console.log(
-        `✅ GNews: After client-side filtering: ${filteredArticles.length} articles confirmed within 24 hours`
+        `✅ GNews: After client-side filtering: ${filteredArticles.length} articles confirmed within 72 hours`
       );
 
       return filteredArticles.map((article) => ({
@@ -328,15 +328,19 @@ class ViralNewsDetectorV3 {
         return [];
       }
 
-      // Calculate exactly 24 hours ago and today for date range
+      // Calculate exactly 72 hours ago and today for date range
       const now = new Date();
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const fromDate = twentyFourHoursAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+      const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+      const fromDate = seventyTwoHoursAgo.toISOString().split('T')[0]; // YYYY-MM-DD
       const toDate = now.toISOString().split('T')[0]; // YYYY-MM-DD (today)
-      const dateRange = `${fromDate},${toDate}`; // Date range format for MediaStack
+
+      // Create date range to cover last 72 hours (3 days)
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      const threeDaysAgoDate = threeDaysAgo.toISOString().split('T')[0];
+      const dateRange = `${threeDaysAgoDate},${toDate}`; // Date range format for MediaStack
 
       console.log(
-        `🕐 MediaStack: Fetching news from ${fromDate} to ${toDate} (last 24 hours)`
+        `🕐 MediaStack: Fetching news from ${threeDaysAgoDate} to ${toDate} (last 72 hours)`
       );
 
       const response = await axios.get('http://api.mediastack.com/v1/news', {
@@ -346,14 +350,14 @@ class ViralNewsDetectorV3 {
           languages: 'en',
           sort: 'popularity',
           limit: 10,
-          date: dateRange, // Date range to ensure last 24 hours coverage
+          date: dateRange, // Date range to ensure last 72 hours coverage
         },
       });
 
       console.log(
         `✅ MediaStack: Retrieved ${
           response.data.data?.length || 0
-        } articles from last 24 hours`
+        } articles from last 72 hours`
       );
 
       return response.data.data.map((article) => ({
@@ -631,7 +635,7 @@ Return ONLY the search query, no explanation.`;
         );
       }
 
-      // 🤖 AI-Powered: Apply smart filtering for 24-hour timeframe and relevance
+      // 🤖 AI-Powered: Apply smart filtering for 72-hour timeframe and relevance
       console.log(`📊 Before Twitter filtering: ${twitterData.length} tweets`);
       const filteredTweets = await this.filterRelevantRecentTweets(
         twitterData,
@@ -672,10 +676,10 @@ Return ONLY the search query, no explanation.`;
         verifiedAccounts: verifiedCount,
         tweets: finalTweets.slice(0, 15), // Show up to 15 tweets
         disclaimer: finalTweets[0]?.fromRapidAPI
-          ? '🔥 REAL tweets fetched directly from Twitter via RapidAPI! (24h filtered)'
+          ? '🔥 REAL tweets fetched directly from Twitter via RapidAPI! (72h filtered)'
           : finalTweets[0]?.isReal
-          ? '✅ Professional news sources with real Twitter URL format. (24h filtered)'
-          : '⚠️ Twitter data estimated due to API restrictions. (24h filtered)',
+          ? '✅ Professional news sources with real Twitter URL format. (72h filtered)'
+          : '⚠️ Twitter data estimated due to API restrictions. (72h filtered)',
       };
     } catch (error) {
       console.error('❌ Error searching Twitter:', error);
@@ -1189,7 +1193,7 @@ Return ONLY the search query, no explanation.`;
         `📊 Before relevance filtering: ${uniquePosts.length} unique posts`
       );
 
-      // 🤖 AI-Powered filtering: Only keep relevant posts from last 24 hours
+      // 🤖 AI-Powered filtering: Only keep relevant posts from last 72 hours
       const relevantPosts = await this.filterRelevantRecentPosts(
         uniquePosts,
         newsItem,
@@ -1270,8 +1274,8 @@ Return ONLY the search query, no explanation.`;
       const response = await axios.get(url, {
         params: {
           q: searchQuery,
-          sort: 'new', // Get newest posts first for 24h filtering
-          t: 'day', // Posts from last day
+          sort: 'new', // Get newest posts first for 72h filtering
+          t: 'week', // Posts from last week (to ensure we get 72h worth)
           type: 'link', // Only link posts (not comments)
           limit: 50, // Get more results to filter from
         },
@@ -1330,8 +1334,8 @@ Return ONLY the search query, no explanation.`;
         params: {
           q: searchQuery,
           restrict_sr: 1, // Restrict to this subreddit
-          sort: 'new', // Get newest posts first for 24h filtering
-          t: 'day', // Posts from last day
+          sort: 'new', // Get newest posts first for 72h filtering
+          t: 'week', // Posts from last week (to ensure we get 72h worth)
           limit: 25, // Get more results to filter from
         },
         headers: {
@@ -1464,20 +1468,20 @@ Reply with only "YES" if highly relevant, or "NO" if not directly related.`;
   }
 
   /**
-   * Filter Reddit posts to only include those from last 24 hours and relevant to news
+   * Filter Reddit posts to only include those from last 72 hours and relevant to news
    */
   async filterRelevantRecentPosts(posts, newsItem, searchTerms) {
     const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
 
     const relevantPosts = [];
 
     for (const post of posts) {
-      // Strict 24-hour timeframe check
+      // Strict 72-hour timeframe check
       const postDate = new Date(post.created);
-      if (postDate < twentyFourHoursAgo) {
+      if (postDate < seventyTwoHoursAgo) {
         console.log(
-          `⏰ Reddit post filtered out (older than 24h): "${post.title}"`
+          `⏰ Reddit post filtered out (older than 72h): "${post.title}"`
         );
         continue;
       }
@@ -1557,16 +1561,16 @@ Reply with only "YES" if highly relevant, or "NO" if not directly related.`;
   }
 
   /**
-   * Filter Twitter posts to only include those from last 24 hours and relevant to news
+   * Filter Twitter posts to only include those from last 72 hours and relevant to news
    */
   async filterRelevantRecentTweets(tweets, newsItem, searchTerms) {
     const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
 
     const relevantTweets = [];
 
     for (const tweet of tweets) {
-      // Strict 24-hour timeframe check
+      // Strict 72-hour timeframe check
       let tweetDate;
       try {
         // Handle different date formats from different Twitter sources
@@ -1574,9 +1578,9 @@ Reply with only "YES" if highly relevant, or "NO" if not directly related.`;
           tweetDate = new Date(tweet.created_at);
         } else if (tweet.timeAgo) {
           // Skip tweets with relative time that might be old
-          if (tweet.timeAgo.includes('d ago') && parseInt(tweet.timeAgo) > 1) {
+          if (tweet.timeAgo.includes('d ago') && parseInt(tweet.timeAgo) > 3) {
             console.log(
-              `⏰ Tweet filtered out (older than 24h): "${tweet.text.substring(
+              `⏰ Tweet filtered out (older than 72h): "${tweet.text.substring(
                 0,
                 50
               )}..."`
@@ -1593,9 +1597,9 @@ Reply with only "YES" if highly relevant, or "NO" if not directly related.`;
         continue;
       }
 
-      if (tweetDate < twentyFourHoursAgo) {
+      if (tweetDate < seventyTwoHoursAgo) {
         console.log(
-          `⏰ Tweet filtered out (older than 24h): "${tweet.text.substring(
+          `⏰ Tweet filtered out (older than 72h): "${tweet.text.substring(
             0,
             50
           )}..."`
@@ -1765,7 +1769,7 @@ Reply with only "YES" if highly relevant, or "NO" if not directly related.`;
         url: `https://twitter.com/${username}/status/${Date.now()}_${i}`, // Simulated URL
         searchUrl: twitterSearchUrl, // Real search URL
         created_at: new Date(
-          Date.now() - Math.random() * 24 * 60 * 60 * 1000
+          Date.now() - Math.random() * 72 * 60 * 60 * 1000
         ).toISOString(),
       });
     }
