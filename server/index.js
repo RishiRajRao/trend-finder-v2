@@ -791,12 +791,9 @@ app.post('/api/v2/viral-news/export', async (req, res) => {
       compression: true,
     });
 
-    // Generate filename with timestamp
-    const timestamp = new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace(/[:-]/g, '');
-    const filename = `viral_news_analysis_${timestamp}.xlsx`;
+    // Generate filename with date in format: viral_news_analysis_2025-07-07
+    const date = new Date().toISOString().slice(0, 10); // Gets YYYY-MM-DD format
+    const filename = `viral_news_analysis_${date}.xlsx`;
 
     // Set headers for file download
     res.setHeader(
