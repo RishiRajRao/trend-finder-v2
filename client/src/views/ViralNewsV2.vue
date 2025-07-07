@@ -42,7 +42,17 @@
     <!-- Results Section -->
     <div v-if="!loading && viralNews.length > 0" class="results-section">
       <div class="results-header">
-        <h2>📊 News Analysis Results</h2>
+        <div class="results-title-section">
+          <h2>📊 News Analysis Results</h2>
+          <button
+            @click="exportToExcel"
+            :disabled="exportLoading"
+            class="export-btn"
+          >
+            <span v-if="exportLoading">⏳ Generating...</span>
+            <span v-else>📊 Export to Excel</span>
+          </button>
+        </div>
         <div class="stats">
           <span class="stat">{{ validatedViral }} Validated Viral</span>
           <span class="stat">{{ crossPlatformValidated }} Cross-Platform</span>
@@ -378,6 +388,7 @@ export default {
       validatedViral: 0,
       crossPlatformValidated: 0,
       analyzedCount: 0,
+      exportLoading: false,
     };
   },
   computed: {
@@ -459,6 +470,126 @@ export default {
       if (score >= 40) return 'medium';
       if (score >= 20) return 'low';
       return 'minimal';
+    },
+
+    async exportToExcel() {
+      this.exportLoading = true;
+
+      try {
+        console.log('🔽 Starting Excel export...');
+
+        // Check if we have data to export
+        if (!this.viralNews || this.viralNews.length === 0) {
+          alert('❌ No data to export. Please run viral detection first.');
+          return;
+        }
+
+        // Try the API approach first with provided data (no re-analysis needed)
+        try {
+          console.log(
+            '🌐 Sending analyzed data to server for Excel generation...'
+          );
+          const response = await axios.post(
+            '/api/v2/viral-news/export',
+            {
+              newsData: this.viralNews,
+            },
+            {
+              responseType: 'blob',
+              timeout: 15000, // 15 second timeout - much faster since no analysis needed
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          this.downloadExcelFile(response);
+          console.log('✅ Server-side Excel export completed successfully');
+          return;
+        } catch (apiError) {
+          console.warn(
+            '⚠️ Server-side export failed, trying client-side approach:',
+            apiError.message
+          );
+
+          // Fallback to client-side generation
+          this.exportExcelClientSide();
+        }
+      } catch (error) {
+        console.error('❌ Excel export failed:', error);
+        alert(`❌ Export Failed: ${error.message || 'Unknown error occurred'}`);
+      } finally {
+        this.exportLoading = false;
+      }
+    },
+
+    downloadExcelFile(response) {
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Extract filename from response headers or create default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'viral_news_analysis.xlsx';
+
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      alert(`📊 Excel file "${filename}" downloaded successfully!`);
+    },
+
+    exportExcelClientSide() {
+      // Client-side CSV generation as fallback (basic news info only)
+      console.log('📝 Generating simplified CSV file client-side...');
+
+      const csvData = this.generateCSVData();
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `viral_news_analysis_${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      alert(
+        '📊 CSV file downloaded successfully! (Excel generation failed, but CSV contains the same basic news data)'
+      );
+    },
+
+    generateCSVData() {
+      const headers = ['S.No', 'Title', 'URL', 'Source', 'Published Date'];
+
+      const rows = this.viralNews.map((item, index) => {
+        return [
+          index + 1,
+          `"${(item.title || '').replace(/"/g, '""')}"`,
+          item.url || '',
+          item.source || '',
+          item.publishedAt ? new Date(item.publishedAt).toLocaleString() : '',
+        ].join(',');
+      });
+
+      return [headers.join(','), ...rows].join('\n');
     },
   },
 };
@@ -898,19 +1029,77 @@ export default {
 }
 
 .results-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 20px;
 }
 
-.results-header h2 {
+.results-title-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.results-title-section h2 {
   color: #2c3e50;
+  margin: 0;
+  flex: 1;
+  min-width: 250px;
+}
+
+.export-btn {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  min-width: 160px;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.export-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #218838, #1b998b);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+.export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  background: #6c757d;
 }
 
 .stats {
   display: flex;
   gap: 15px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .results-title-section {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+
+  .results-title-section h2 {
+    min-width: auto;
+  }
+
+  .export-btn {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .stats {
+    justify-content: center;
+  }
 }
 
 .stat {

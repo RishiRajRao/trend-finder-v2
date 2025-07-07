@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const TrendTracker = require('./trendTracker');
 const ViralNewsDetectorV3 = require('./viralNewsDetector');
+const XLSX = require('xlsx');
 require('dotenv').config();
 
 const app = express();
@@ -731,6 +732,91 @@ app.get('/api/v2/viral-comparison', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Viral detection comparison failed',
+      error: error.message,
+    });
+  }
+});
+
+// V2: Export viral news data to Excel file (using provided data)
+app.post('/api/v2/viral-news/export', async (req, res) => {
+  try {
+    console.log('📊 Generating Excel export from provided data...');
+
+    const { newsData } = req.body;
+
+    if (!newsData || !Array.isArray(newsData) || newsData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No news data provided for export',
+      });
+    }
+
+    // Prepare simplified data for Excel export (basic news info only)
+    const excelData = newsData.map((item, index) => {
+      return {
+        'S.No': index + 1,
+        Title: item.title || '',
+        URL: item.url || '',
+        Source: item.source || '',
+        'Published Date': item.publishedAt
+          ? new Date(item.publishedAt).toLocaleString()
+          : '',
+      };
+    });
+
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Auto-size columns
+    const colWidths = [];
+    const headers = Object.keys(excelData[0] || {});
+    headers.forEach((header, index) => {
+      let maxWidth = header.length;
+      excelData.forEach((row) => {
+        const cellValue = String(row[header] || '');
+        maxWidth = Math.max(maxWidth, cellValue.length);
+      });
+      colWidths[index] = { width: Math.min(maxWidth + 2, 50) }; // Cap at 50 chars
+    });
+    worksheet['!cols'] = colWidths;
+
+    // Add the worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Viral News Analysis');
+
+    // Generate buffer
+    const excelBuffer = XLSX.write(workbook, {
+      type: 'buffer',
+      bookType: 'xlsx',
+      compression: true,
+    });
+
+    // Generate filename with timestamp
+    const timestamp = new Date()
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:-]/g, '');
+    const filename = `viral_news_analysis_${timestamp}.xlsx`;
+
+    // Set headers for file download
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', excelBuffer.length);
+
+    console.log(
+      `✅ Excel export generated: ${filename} (${excelData.length} rows)`
+    );
+
+    // Send the Excel file
+    res.send(excelBuffer);
+  } catch (error) {
+    console.error('❌ Excel export failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate Excel export',
       error: error.message,
     });
   }
