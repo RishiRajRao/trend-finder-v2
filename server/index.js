@@ -205,6 +205,71 @@ app.get('/api/live-trends/youtube', async (req, res) => {
   }
 });
 
+// YouTube trends endpoint for the YT-TREND tab
+app.get('/api/yt-trends', async (req, res) => {
+  try {
+    console.log('📹 Fetching YouTube trends for YT-TREND tab...');
+    const youtubeData = await trendTracker.fetchYouTubeTrending();
+
+    // Transform data to match frontend expectations
+    const transformedVideos = youtubeData.map((video, index) => ({
+      id: video.id || `yt_${index}`,
+      title: video.title,
+      channelTitle: video.channelTitle || video.channel || 'Unknown Channel',
+      viewCount: video.viewCount || video.views || 0,
+      likeCount: video.likeCount || video.likes || 0,
+      commentCount: video.commentCount || video.comments || 0,
+      publishedAt:
+        video.publishedAt || video.publishTime || new Date().toISOString(),
+      thumbnail: video.thumbnail || video.thumbnailUrl || '/favicon.ico',
+      duration: video.duration || '0:00',
+      description: video.description || video.snippet || '',
+      url: video.url || `https://youtube.com/watch?v=${video.id}`,
+      viralScore: Math.min(Math.max(video.score || 50, 10), 100),
+      isViral: (video.score || 50) >= 80,
+      isTrending: (video.score || 50) >= 60,
+      engagementRate:
+        video.engagementRate ||
+        (
+          ((video.likes + video.comments) / Math.max(video.views, 1)) *
+          100
+        ).toFixed(1),
+      viewVelocity:
+        video.viewVelocity ||
+        (video.score >= 80
+          ? 'Very High'
+          : video.score >= 60
+          ? 'High'
+          : 'Medium'),
+    }));
+
+    res.json({
+      success: true,
+      videos: transformedVideos.sort((a, b) => b.viralScore - a.viralScore),
+      count: transformedVideos.length,
+      timestamp: new Date().toISOString(),
+      analytics: {
+        totalViews: transformedVideos.reduce((sum, v) => sum + v.viewCount, 0),
+        totalLikes: transformedVideos.reduce((sum, v) => sum + v.likeCount, 0),
+        viralVideos: transformedVideos.filter((v) => v.isViral).length,
+        trendingVideos: transformedVideos.filter((v) => v.isTrending).length,
+        averageScore: (
+          transformedVideos.reduce((sum, v) => sum + v.viralScore, 0) /
+          transformedVideos.length
+        ).toFixed(1),
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error fetching YouTube trends:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch YouTube trends',
+      error: error.message,
+      videos: [], // Return empty array so frontend doesn't break
+    });
+  }
+});
+
 app.get('/api/live-trends/twitter', async (req, res) => {
   try {
     const twitterData = await trendTracker.fetchTwitterTrends();
