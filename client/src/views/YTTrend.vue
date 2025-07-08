@@ -174,16 +174,28 @@ export default {
       this.loadingMessage = 'Fetching trending YouTube videos...';
 
       try {
+        // Calculate date range: last 3 days to today
+        const today = new Date();
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(today.getDate() - 3);
+
+        const formatDate = (date) => {
+          return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        };
+
+        const startDate = formatDate(threeDaysAgo);
+        const endDate = formatDate(today);
+
         // Fetch from the provided API
         const axios = (await import('axios')).default;
         const response = await axios.get(
-          'https://confucius.dev.zero1creatorstudio.com/api/user/videos?limit=100&offset=0',
+          `https://confucius.dev.zero1creatorstudio.com/api/user/videos?limit=100&offset=0&start=${startDate}&end=${endDate}&is_short=true`,
           {
             headers: {
               accept: 'application/json',
               'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
               authorization:
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODZiYmUyYzJlZmZjZGM2ZmY3YWVlY2IiLCJleHAiOjE3ODM0MjkzNTF9.cKO204GRz50yDhUqgV8j20deS7ovQdP1MLKF-337hgQ',
+                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODZjZTE1YWU4ZjVlMGQyNTgxNDY5NWYiLCJleHAiOjE3ODM1MDIwODF9.b74MoL7JcwzcuGwYtkMtUPFRzYzOlG31zoiiq9OyXgw',
               origin: 'https://dev.zero1creatorstudio.com',
               referer: 'https://dev.zero1creatorstudio.com/',
               'user-agent':
@@ -590,15 +602,18 @@ export default {
 
 .youtube-video-card {
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
   cursor: pointer;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .youtube-video-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+  border-color: #d1d5db;
 }
 
 /* Thumbnail container */
@@ -607,7 +622,8 @@ export default {
   width: 100%;
   height: 140px;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
+  background: #f8f9fa;
 }
 
 .video-thumbnail {
@@ -658,6 +674,8 @@ export default {
   display: flex;
   padding: 12px;
   gap: 12px;
+  background: white;
+  border-radius: 0 0 12px 12px;
 }
 
 .channel-avatar {
@@ -669,6 +687,8 @@ export default {
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid #f0f0f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .video-details {
@@ -725,6 +745,8 @@ export default {
   border-radius: 12px;
   font-weight: 600;
   display: inline-block;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .viral-score-badge.viral {
