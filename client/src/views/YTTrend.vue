@@ -145,7 +145,7 @@
         </button>
       </div>
 
-      <div class="platform-summary">
+      <!-- <div class="platform-summary">
         <div class="summary-stats">
           <div class="stat-card">
             <h3>📊 Overall Analysis</h3>
@@ -181,10 +181,10 @@
             </p>
           </div>
         </div>
-      </div>
+      </div> -->
 
       <div class="top-cross-platform-videos">
-        <h3>🔥 Top Cross-Platform Performers</h3>
+        <!-- <h3>🔥 Top Cross-Platform Performers</h3> -->
         <div
           v-if="getTopCrossPlatformVideos().length === 0"
           class="no-cross-platform-data"
@@ -266,14 +266,14 @@
                     >
                   </span>
                 </div>
-                <div class="viral-potential">
+                <!-- <div class="viral-potential">
                   {{
                     getCrossPlatformViralStatus(
                       video.crossPlatformAnalysis.totalScore
                     )
                   }}
-                </div>
-                <div class="platform-highlights">
+                </div> -->
+                <!-- <div class="platform-highlights">
                   <div
                     v-if="
                       video.crossPlatformAnalysis.twitter &&
@@ -298,7 +298,7 @@
                     <strong>Reddit:</strong>
                     {{ video.crossPlatformAnalysis.reddit.topMatches[0].title }}
                   </div>
-                </div>
+                </div> -->
 
                 <!-- View Sources Button -->
                 <div class="view-sources-section">
@@ -322,38 +322,12 @@
                   "
                   class="sources-details"
                 >
-                  <!-- Semantic Title Info -->
-                  <div
-                    v-if="
-                      video.semanticTitle && video.semanticTitle !== video.title
-                    "
-                    class="semantic-title-info"
-                  >
-                    <h4>🤖 AI-Generated Search Title</h4>
-                    <div class="semantic-title-comparison">
-                      <div class="original-title">
-                        <strong>Original:</strong>
-                        {{ video.title.substring(0, 100)
-                        }}{{ video.title.length > 100 ? '...' : '' }}
-                      </div>
-                      <div class="semantic-title">
-                        <strong>Semantic:</strong> {{ video.semanticTitle }}
-                      </div>
-                      <div class="title-note">
-                        <small
-                          >🎯 AI cleaned the title for better cross-platform
-                          searching</small
-                        >
-                      </div>
-                    </div>
-                  </div>
-
                   <!-- Time Filter Notice -->
-                  <div class="time-filter-notice">
+                  <!-- <div class="time-filter-notice">
                     <div class="filter-badge">
                       📅 Results limited to last 3 days for trend relevance
                     </div>
-                  </div>
+                  </div> -->
 
                   <!-- Sources Tabs -->
                   <div class="sources-tabs">
