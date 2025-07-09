@@ -603,6 +603,18 @@ export default {
       this.loadingMessage = 'Fetching trending YouTube videos...';
 
       try {
+        // Check if environment variables are set
+        if (!import.meta.env.VITE_YOUTUBE_BEARER_TOKEN) {
+          throw new Error(
+            'VITE_YOUTUBE_BEARER_TOKEN not found in environment variables'
+          );
+        }
+        if (!import.meta.env.VITE_YOUTUBE_API_BASE_URL) {
+          throw new Error(
+            'VITE_YOUTUBE_API_BASE_URL not found in environment variables'
+          );
+        }
+
         // Calculate date range: last 3 days to today
         const today = new Date();
         const threeDaysAgo = new Date();
@@ -618,13 +630,16 @@ export default {
         // Fetch from the provided API
         const axios = (await import('axios')).default;
         const response = await axios.get(
-          `https://confucius.dev.zero1creatorstudio.com/api/user/videos?limit=100&offset=0&start=${startDate}&end=${endDate}&is_short=true`,
+          `${
+            import.meta.env.VITE_YOUTUBE_API_BASE_URL
+          }/videos?limit=100&offset=0&start=${startDate}&end=${endDate}&is_short=true`,
           {
             headers: {
               accept: 'application/json',
               'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
-              authorization:
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODZkMDllYzMyMWNkNDZiZWFhMDU5MTQiLCJleHAiOjE3ODM1MTI0NzN9.IqCwYFs3Z6J38iMqE1EVAUl3-GcNChFDEvojlmVROao',
+              authorization: `Bearer ${
+                import.meta.env.VITE_YOUTUBE_BEARER_TOKEN
+              }`,
               origin: 'https://dev.zero1creatorstudio.com',
               referer: 'https://dev.zero1creatorstudio.com/',
               'user-agent':
