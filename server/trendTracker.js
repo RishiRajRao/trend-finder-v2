@@ -2877,6 +2877,470 @@ Focus on viral potential and trending topics. Only return high-confidence matche
     console.log('OpenAI API not implemented, using manual fallback');
     return null;
   }
+
+  // Search Twitter for specific topics/keywords using RapidAPI (same as viral news detector)
+  async searchTwitterForTopic(keywords) {
+    try {
+      console.log(`🐦 Searching Twitter for keywords: ${keywords.join(', ')}`);
+
+      const searchTerms = keywords.join(' ');
+      let twitterData = [];
+
+      // Use RapidAPI for real Twitter data (same as viral news detector)
+      const rapidApiKey = process.env.RAPIDAPI_KEY;
+      const rapidApiHost =
+        process.env.RAPIDAPI_HOST || 'twitter241.p.rapidapi.com';
+
+      if (rapidApiKey && rapidApiKey !== 'your_rapidapi_key_here') {
+        try {
+          console.log('🚀 Using REAL Twitter API via RapidAPI...');
+          twitterData = await this.searchTwitterRapidAPI(
+            searchTerms,
+            rapidApiKey,
+            rapidApiHost
+          );
+          if (twitterData.length > 0) {
+            console.log(
+              `✅ RapidAPI Success: Found ${twitterData.length} REAL tweets from the internet!`
+            );
+          } else {
+            console.log('⚠️ RapidAPI returned no results');
+          }
+        } catch (rapidApiError) {
+          console.log('⚠️ RapidAPI failed:', rapidApiError.message);
+        }
+      } else {
+        console.log(
+          '⚠️ No RapidAPI key found, falling back to trends scraping'
+        );
+      }
+
+      // Fallback to general trends if RapidAPI fails
+      if (twitterData.length === 0) {
+        console.log('🔄 Falling back to general Twitter trends...');
+        const generalTrends = await this.fetchTwitterTrends();
+
+        // Filter trends that match our keywords
+        const matchingTrends = generalTrends.filter((trend) => {
+          const trendText = trend.title.toLowerCase();
+          return keywords.some(
+            (keyword) =>
+              trendText.includes(keyword.toLowerCase()) ||
+              keyword.toLowerCase().includes(trendText)
+          );
+        });
+
+        // If no direct matches, look for related content
+        if (matchingTrends.length === 0) {
+          const broaderTerms = keywords.flatMap((keyword) => [
+            keyword,
+            keyword.split(' ')[0],
+            ...keyword.split(' ').filter((word) => word.length > 3),
+          ]);
+
+          twitterData = generalTrends
+            .filter((trend) => {
+              const trendText = trend.title.toLowerCase();
+              return broaderTerms.some(
+                (term) =>
+                  trendText.includes(term.toLowerCase()) && term.length > 2
+              );
+            })
+            .slice(0, 5);
+        } else {
+          twitterData = matchingTrends;
+        }
+      }
+
+      console.log(`✅ Found ${twitterData.length} Twitter matches`);
+      return twitterData;
+    } catch (error) {
+      console.error('❌ Error searching Twitter:', error.message);
+      return [];
+    }
+  }
+
+  // Search Twitter via RapidAPI for real tweets (same method as viral news detector)
+  async searchTwitterRapidAPI(searchTerms, rapidApiKey, rapidApiHost) {
+    const tweets = [];
+
+    try {
+      console.log(
+        `🚀 Fetching REAL tweets for: "${searchTerms}" via RapidAPI...`
+      );
+
+      const options = {
+        method: 'GET',
+        url: `https://${rapidApiHost}/search`,
+        params: {
+          query: searchTerms,
+          type: 'Top',
+          count: '20',
+        },
+        headers: {
+          'x-rapidapi-key': rapidApiKey,
+          'x-rapidapi-host': rapidApiHost,
+        },
+        timeout: 15000,
+      };
+
+      const response = await axios.request(options);
+
+      if (
+        response.data &&
+        response.data.result &&
+        response.data.result.timeline
+      ) {
+        const timeline = response.data.result.timeline;
+        const instructions = timeline.instructions || [];
+        let tweetList = [];
+
+        // Find TimelineAddEntries instruction
+        for (const instruction of instructions) {
+          if (
+            instruction.type === 'TimelineAddEntries' &&
+            instruction.entries
+          ) {
+            for (const entry of instruction.entries) {
+              if (entry.content?.itemContent?.tweet_results?.result) {
+                tweetList.push(entry.content.itemContent.tweet_results.result);
+              }
+            }
+          }
+        }
+
+        console.log(
+          `📡 RapidAPI returned ${tweetList.length} real tweets from twitter241!`
+        );
+
+        // Process real Twitter data
+        for (let i = 0; i < Math.min(tweetList.length, 10); i++) {
+          const tweet = tweetList[i];
+          const legacy = tweet.legacy || {};
+          const user = tweet.core?.user_results?.result || {};
+          const userLegacy = user.legacy || {};
+
+          const tweetData = {
+            id: tweet.rest_id || legacy.id_str || `rapidapi_${Date.now()}_${i}`,
+            title:
+              legacy.full_text ||
+              legacy.text ||
+              `Real tweet about ${searchTerms}`,
+            username:
+              user.core?.screen_name || userLegacy.screen_name || 'TwitterUser',
+            displayName: user.core?.name || userLegacy.name || 'Twitter User',
+            isVerified:
+              userLegacy.verified || user.verification?.verified || false,
+            text:
+              legacy.full_text ||
+              legacy.text ||
+              `Real tweet about ${searchTerms}`,
+            retweets: parseInt(legacy.retweet_count) || 0,
+            likes: parseInt(legacy.favorite_count) || 0,
+            replies: parseInt(legacy.reply_count) || 0,
+            score: 50 + Math.floor(Math.random() * 30), // Base score for real tweets
+            created_at: legacy.created_at || new Date().toISOString(),
+            url: tweet.rest_id
+              ? `https://twitter.com/${
+                  user.core?.screen_name || userLegacy.screen_name || 'twitter'
+                }/status/${tweet.rest_id}`
+              : `https://twitter.com/search?q=${encodeURIComponent(
+                  searchTerms
+                )}`,
+            fromRapidAPI: true,
+          };
+
+          tweets.push(tweetData);
+        }
+
+        console.log(
+          `✅ Successfully processed ${tweets.length} REAL tweets from RapidAPI`
+        );
+      } else {
+        console.log('⚠️ RapidAPI returned empty or invalid response');
+      }
+    } catch (error) {
+      console.error(
+        '❌ RapidAPI Error:',
+        error.response?.data?.message || error.message
+      );
+
+      if (error.response?.status === 429) {
+        console.log('⚠️ RapidAPI rate limit hit');
+      } else if (error.response?.status === 401) {
+        console.log('⚠️ RapidAPI authentication failed - check your API key');
+      } else {
+        console.log('⚠️ RapidAPI connection failed');
+      }
+    }
+
+    return tweets;
+  }
+
+  // Search Reddit for specific topics/keywords using same method as viral news detector
+  async searchRedditForTopic(keywords) {
+    try {
+      console.log(`🔴 Searching Reddit for keywords: ${keywords.join(', ')}`);
+
+      const searchTerms = keywords.join(' ');
+      const allPosts = [];
+
+      try {
+        // First: Search across ALL of Reddit using successful viral news detector method
+        const globalPosts = await this.searchRedditGlobalAPI(searchTerms);
+        allPosts.push(...globalPosts);
+        console.log(`🌍 Global search: ${globalPosts.length} posts found`);
+
+        // Add delay to respect Reddit's rate limits
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        // Second: Search popular subreddits for additional coverage
+        const popularSubreddits = ['news', 'worldnews', 'india', 'IndiaSpeaks'];
+        for (const subreddit of popularSubreddits.slice(0, 2)) {
+          try {
+            const posts = await this.searchRedditSubredditAPI(
+              subreddit,
+              searchTerms
+            );
+            // Avoid duplicates by checking if post ID already exists
+            const newPosts = posts.filter(
+              (post) => !allPosts.some((existing) => existing.id === post.id)
+            );
+            allPosts.push(...newPosts);
+            console.log(
+              `📍 r/${subreddit}: ${newPosts.length} new posts found`
+            );
+
+            // Add delay to respect Reddit's rate limits
+            await new Promise((resolve) => setTimeout(resolve, 150));
+          } catch (error) {
+            console.log(`⚠️ Skipping r/${subreddit}: ${error.message}`);
+            continue;
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Reddit search failed:', error.message);
+      }
+
+      // Remove duplicates and sort by upvotes
+      const uniquePosts = allPosts.filter(
+        (post, index, self) => index === self.findIndex((p) => p.id === post.id)
+      );
+
+      const sortedPosts = uniquePosts.sort(
+        (a, b) => (b.upvotes || 0) - (a.upvotes || 0)
+      );
+
+      console.log(`✅ Found ${sortedPosts.length} Reddit matches`);
+      return sortedPosts.slice(0, 10); // Return top 10 posts
+    } catch (error) {
+      console.error('❌ Error searching Reddit:', error.message);
+      return [];
+    }
+  }
+
+  // Search across ALL of Reddit using global search API (same as viral news detector)
+  async searchRedditGlobalAPI(searchTerms) {
+    try {
+      const url = 'https://www.reddit.com/search.json';
+
+      const response = await axios.get(url, {
+        params: {
+          q: searchTerms,
+          sort: 'new',
+          t: 'week',
+          type: 'link',
+          limit: 25,
+        },
+        headers: {
+          'User-Agent': 'TrendFinder/1.0 (YouTube Trend Analysis Bot)',
+        },
+        timeout: 8000,
+      });
+
+      if (!response.data.data || !response.data.data.children) {
+        return [];
+      }
+
+      const posts = response.data.data.children
+        .filter((child) => child.data && child.data.title)
+        .map((child) => {
+          const post = child.data;
+          const upvotes = post.ups || 0;
+          const downvotes = Math.max(0, upvotes - (post.score || 0));
+          const upvoteRatio = upvotes > 0 ? upvotes / (upvotes + downvotes) : 0;
+
+          return {
+            id: post.id,
+            title: post.title,
+            subreddit: post.subreddit,
+            upvotes: upvotes,
+            downvotes: downvotes,
+            upvoteRatio: parseFloat(upvoteRatio.toFixed(2)),
+            comments: post.num_comments || 0,
+            url: `https://reddit.com${post.permalink}`,
+            created: new Date(post.created_utc * 1000).toISOString(),
+          };
+        });
+
+      return posts;
+    } catch (error) {
+      if (error.response && error.response.status === 429) {
+        console.log('🚫 Rate limited on global Reddit search');
+      } else {
+        console.error('❌ Error in global Reddit search:', error.message);
+      }
+      return [];
+    }
+  }
+
+  // Search specific Reddit subreddit using JSON API (same as viral news detector)
+  async searchRedditSubredditAPI(subreddit, searchTerms) {
+    try {
+      const url = `https://www.reddit.com/r/${subreddit}/search.json`;
+
+      const response = await axios.get(url, {
+        params: {
+          q: searchTerms,
+          restrict_sr: 1,
+          sort: 'new',
+          t: 'week',
+          limit: 15,
+        },
+        headers: {
+          'User-Agent': 'TrendFinder/1.0 (YouTube Trend Analysis Bot)',
+        },
+        timeout: 5000,
+      });
+
+      if (!response.data.data || !response.data.data.children) {
+        return [];
+      }
+
+      const posts = response.data.data.children
+        .filter((child) => child.data && child.data.title)
+        .map((child) => {
+          const post = child.data;
+          const upvotes = post.ups || 0;
+          const downvotes = Math.max(0, upvotes - (post.score || 0));
+          const upvoteRatio = upvotes > 0 ? upvotes / (upvotes + downvotes) : 0;
+
+          return {
+            id: post.id,
+            title: post.title,
+            subreddit: subreddit,
+            upvotes: upvotes,
+            downvotes: downvotes,
+            upvoteRatio: parseFloat(upvoteRatio.toFixed(2)),
+            comments: post.num_comments || 0,
+            url: `https://reddit.com${post.permalink}`,
+            created: new Date(post.created_utc * 1000).toISOString(),
+          };
+        });
+
+      return posts;
+    } catch (error) {
+      if (error.response && error.response.status === 429) {
+        console.log(`🚫 Rate limited on r/${subreddit}`);
+      } else {
+        console.error(`❌ Error searching r/${subreddit}:`, error.message);
+      }
+      return [];
+    }
+  }
+
+  // Search News for specific topics/keywords
+  async searchNewsForTopic(keywords) {
+    try {
+      console.log(`📰 Searching News for keywords: ${keywords.join(', ')}`);
+
+      // Search both GNews and MediaStack for specific keywords
+      const searchQueries = keywords.slice(0, 3); // Limit to avoid API rate limits
+
+      const newsPromises = searchQueries.map(async (keyword) => {
+        try {
+          // Search GNews for specific keyword
+          if (
+            this.gnewsApiKey &&
+            this.gnewsApiKey !== 'your_gnews_api_key_here'
+          ) {
+            const response = await axios.get('https://gnews.io/api/v4/search', {
+              params: {
+                token: this.gnewsApiKey,
+                country: 'in',
+                lang: 'en',
+                q: `"${keyword}" OR ${keyword}`, // Exact phrase or keyword
+                sortby: 'relevance',
+                max: 5,
+                from: new Date(
+                  Date.now() - 7 * 24 * 60 * 60 * 1000
+                ).toISOString(), // Last 7 days
+              },
+            });
+
+            return response.data.articles.map((article) => ({
+              title: article.title,
+              description: article.description,
+              source: article.source.name,
+              url: article.url,
+              publishedAt: article.publishedAt,
+              score: this.scoreHeadline(
+                article.title,
+                article.source.url || ''
+              ),
+              api: 'GNews-Search',
+              searchKeyword: keyword,
+            }));
+          }
+          return [];
+        } catch (error) {
+          console.error(
+            `Error searching news for "${keyword}":`,
+            error.message
+          );
+          return [];
+        }
+      });
+
+      const newsResults = await Promise.all(newsPromises);
+      const allNews = newsResults.flat();
+
+      // Remove duplicates based on title similarity
+      const uniqueNews = [];
+      allNews.forEach((news) => {
+        const isDuplicate = uniqueNews.some(
+          (existing) =>
+            this.calculateSimilarity(news.title, existing.title) > 0.8
+        );
+        if (!isDuplicate) {
+          uniqueNews.push(news);
+        }
+      });
+
+      console.log(`✅ Found ${uniqueNews.length} relevant news articles`);
+      return uniqueNews.slice(0, 5); // Limit to 5 most relevant
+    } catch (error) {
+      console.error('❌ Error searching News:', error.message);
+      return [];
+    }
+  }
+
+  // Helper method to calculate text similarity
+  calculateSimilarity(text1, text2) {
+    const words1 = text1
+      .toLowerCase()
+      .split(/\W+/)
+      .filter((w) => w.length > 2);
+    const words2 = text2
+      .toLowerCase()
+      .split(/\W+/)
+      .filter((w) => w.length > 2);
+
+    const intersection = words1.filter((word) => words2.includes(word));
+    const union = [...new Set([...words1, ...words2])];
+
+    return intersection.length / union.length;
+  }
 }
 
 module.exports = TrendTracker;

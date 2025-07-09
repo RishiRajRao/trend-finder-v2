@@ -26,6 +26,15 @@
           <span v-if="loading">🔄 Analyzing...</span>
           <span v-else>🎬 Detect YouTube Trends</span>
         </button>
+
+        <button
+          @click="performCrossPlatformAnalysis"
+          :disabled="crossPlatformLoading || trendingVideos.length === 0"
+          class="secondary-btn"
+        >
+          <span v-if="crossPlatformLoading">🔄 Cross-Platform Analysis...</span>
+          <span v-else>🌐 Cross-Platform Analysis</span>
+        </button>
       </div>
     </div>
 
@@ -118,6 +127,337 @@
               >
                 Viral Score: {{ video.viralScore }}/100
               </div>
+
+              <!-- Cross-Platform Analysis Badge -->
+              <div
+                v-if="video.crossPlatformAnalysis"
+                class="cross-platform-badge"
+                :class="
+                  getCrossPlatformClass(video.crossPlatformAnalysis.totalScore)
+                "
+              >
+                Cross-Platform: {{ video.crossPlatformAnalysis.totalScore }}/100
+                <div class="platform-breakdown">
+                  <span class="twitter-score"
+                    >📱 {{ video.crossPlatformAnalysis.twitter.score }}</span
+                  >
+                  <span class="reddit-score"
+                    >🔴 {{ video.crossPlatformAnalysis.reddit.score }}</span
+                  >
+                  <span class="news-score"
+                    >📰 {{ video.crossPlatformAnalysis.googleNews.score }}</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cross-Platform Analysis Results -->
+    <div
+      v-if="showCrossPlatformResults && crossPlatformAnalysis"
+      class="cross-platform-section"
+    >
+      <div class="cross-platform-header">
+        <h2>🌐 Cross-Platform Analysis Results</h2>
+        <button @click="showCrossPlatformResults = false" class="close-btn">
+          ✕
+        </button>
+      </div>
+
+      <div class="platform-summary">
+        <div class="summary-stats">
+          <div class="stat-card">
+            <h3>📊 Overall Analysis</h3>
+            <p>
+              <strong>Total Videos:</strong>
+              {{ crossPlatformAnalysis.data.analysis.totalVideos }}
+            </p>
+            <p>
+              <strong>High Cross-Platform Score:</strong>
+              {{ crossPlatformAnalysis.data.analysis.highCrossPlatformScore }}
+            </p>
+            <p>
+              <strong>Viral Across Platforms:</strong>
+              {{ crossPlatformAnalysis.data.analysis.viralAcrossPlatforms }}
+            </p>
+          </div>
+
+          <div class="stat-card">
+            <h3>📊 Analysis Summary</h3>
+            <p>
+              <strong>Total Cross-Platform Matches:</strong>
+              {{
+                crossPlatformAnalysis.data.analysis.totalCrossPlatformMatches
+              }}
+            </p>
+            <p>
+              <strong>Average Score:</strong>
+              {{ crossPlatformAnalysis.data.analysis.avgScore }}/100
+            </p>
+            <p>
+              <strong>Analysis Method:</strong>
+              Keyword-based search across platforms
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="top-cross-platform-videos">
+        <h3>🔥 Top Cross-Platform Performers</h3>
+        <div
+          v-if="getTopCrossPlatformVideos().length === 0"
+          class="no-cross-platform-data"
+        >
+          <p>
+            No cross-platform analysis data available. Run the analysis first!
+          </p>
+        </div>
+        <div v-else class="top-videos-grid">
+          <div
+            v-for="video in getTopCrossPlatformVideos()"
+            :key="video.id"
+            class="top-video-card"
+          >
+            <div class="video-thumbnail-small">
+              <img :src="video.thumbnail" :alt="video.title" />
+            </div>
+            <div class="video-cross-platform-info">
+              <h4>{{ video.title.substring(0, 60) }}...</h4>
+              <div
+                class="cross-platform-scores"
+                v-if="video.crossPlatformAnalysis"
+              >
+                <div class="total-score">
+                  Total:
+                  <strong
+                    >{{
+                      video.crossPlatformAnalysis.totalScore || 0
+                    }}/100</strong
+                  >
+                </div>
+                <div class="platform-scores">
+                  <span class="twitter">
+                    📱
+                    {{
+                      (video.crossPlatformAnalysis.twitter &&
+                        video.crossPlatformAnalysis.twitter.score) ||
+                      0
+                    }}/100
+                    <small
+                      >({{
+                        (video.crossPlatformAnalysis.twitter &&
+                          video.crossPlatformAnalysis.twitter.matches) ||
+                        0
+                      }}
+                      matches)</small
+                    >
+                  </span>
+                  <span class="reddit">
+                    🔴
+                    {{
+                      (video.crossPlatformAnalysis.reddit &&
+                        video.crossPlatformAnalysis.reddit.score) ||
+                      0
+                    }}/100
+                    <small
+                      >({{
+                        (video.crossPlatformAnalysis.reddit &&
+                          video.crossPlatformAnalysis.reddit.matches) ||
+                        0
+                      }}
+                      matches)</small
+                    >
+                  </span>
+                  <span class="news">
+                    📰
+                    {{
+                      (video.crossPlatformAnalysis.googleNews &&
+                        video.crossPlatformAnalysis.googleNews.score) ||
+                      0
+                    }}/100
+                    <small
+                      >({{
+                        (video.crossPlatformAnalysis.googleNews &&
+                          video.crossPlatformAnalysis.googleNews.matches) ||
+                        0
+                      }}
+                      matches)</small
+                    >
+                  </span>
+                </div>
+                <div class="viral-potential">
+                  {{
+                    getCrossPlatformViralStatus(
+                      video.crossPlatformAnalysis.totalScore
+                    )
+                  }}
+                </div>
+                <div class="platform-highlights">
+                  <div
+                    v-if="
+                      video.crossPlatformAnalysis.twitter &&
+                      video.crossPlatformAnalysis.twitter.topMatches &&
+                      video.crossPlatformAnalysis.twitter.topMatches.length > 0
+                    "
+                    class="highlight"
+                  >
+                    <strong>Twitter:</strong>
+                    {{
+                      video.crossPlatformAnalysis.twitter.topMatches[0].title
+                    }}
+                  </div>
+                  <div
+                    v-if="
+                      video.crossPlatformAnalysis.reddit &&
+                      video.crossPlatformAnalysis.reddit.topMatches &&
+                      video.crossPlatformAnalysis.reddit.topMatches.length > 0
+                    "
+                    class="highlight"
+                  >
+                    <strong>Reddit:</strong>
+                    {{ video.crossPlatformAnalysis.reddit.topMatches[0].title }}
+                  </div>
+                </div>
+
+                <!-- View Sources Button -->
+                <div class="view-sources-section">
+                  <button
+                    @click="toggleSources(video.id)"
+                    class="view-sources-btn"
+                    v-if="hasAnySources(video.crossPlatformAnalysis)"
+                  >
+                    {{
+                      showingSources[video.id] ? 'Hide Sources' : 'View Sources'
+                    }}
+                    ({{ getTotalSourcesCount(video.crossPlatformAnalysis) }})
+                  </button>
+                </div>
+
+                <!-- Sources Details -->
+                <div
+                  v-if="
+                    showingSources[video.id] &&
+                    hasAnySources(video.crossPlatformAnalysis)
+                  "
+                  class="sources-details"
+                >
+                  <!-- Twitter Sources -->
+                  <div
+                    v-if="
+                      video.crossPlatformAnalysis.twitter?.sources?.length > 0
+                    "
+                    class="platform-sources"
+                  >
+                    <h4>
+                      📱 Twitter Sources ({{
+                        video.crossPlatformAnalysis.twitter.sources.length
+                      }})
+                    </h4>
+                    <div
+                      v-for="source in video.crossPlatformAnalysis.twitter
+                        .sources"
+                      :key="source.url"
+                      class="source-item twitter-source"
+                    >
+                      <div class="source-header">
+                        <a
+                          :href="source.url"
+                          target="_blank"
+                          class="source-link"
+                        >
+                          {{ source.title.substring(0, 80)
+                          }}{{ source.title.length > 80 ? '...' : '' }}
+                        </a>
+                        <span class="source-verified">{{
+                          source.verified
+                        }}</span>
+                      </div>
+                      <div class="source-meta">
+                        @{{ source.username }} • {{ source.engagement }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Reddit Sources -->
+                  <div
+                    v-if="
+                      video.crossPlatformAnalysis.reddit?.sources?.length > 0
+                    "
+                    class="platform-sources"
+                  >
+                    <h4>
+                      🔴 Reddit Sources ({{
+                        video.crossPlatformAnalysis.reddit.sources.length
+                      }})
+                    </h4>
+                    <div
+                      v-for="source in video.crossPlatformAnalysis.reddit
+                        .sources"
+                      :key="source.url"
+                      class="source-item reddit-source"
+                    >
+                      <div class="source-header">
+                        <a
+                          :href="source.url"
+                          target="_blank"
+                          class="source-link"
+                        >
+                          {{ source.title.substring(0, 80)
+                          }}{{ source.title.length > 80 ? '...' : '' }}
+                        </a>
+                        <span class="source-verified">{{
+                          source.verified
+                        }}</span>
+                      </div>
+                      <div class="source-meta">
+                        r/{{ source.subreddit }} • {{ source.engagement }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- News Sources -->
+                  <div
+                    v-if="
+                      video.crossPlatformAnalysis.googleNews?.sources?.length >
+                      0
+                    "
+                    class="platform-sources"
+                  >
+                    <h4>
+                      📰 News Sources ({{
+                        video.crossPlatformAnalysis.googleNews.sources.length
+                      }})
+                    </h4>
+                    <div
+                      v-for="source in video.crossPlatformAnalysis.googleNews
+                        .sources"
+                      :key="source.url"
+                      class="source-item news-source"
+                    >
+                      <div class="source-header">
+                        <a
+                          :href="source.url"
+                          target="_blank"
+                          class="source-link"
+                        >
+                          {{ source.title.substring(0, 80)
+                          }}{{ source.title.length > 80 ? '...' : '' }}
+                        </a>
+                        <span class="source-verified">{{
+                          source.verified
+                        }}</span>
+                      </div>
+                      <div class="source-meta">
+                        {{ source.source }} •
+                        {{ formatTime(source.publishedAt) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -146,6 +486,10 @@ export default {
       exportLoading: false,
       hasSearched: false,
       trendingVideos: [],
+      crossPlatformLoading: false,
+      crossPlatformAnalysis: null,
+      showCrossPlatformResults: false,
+      showingSources: {}, // Track which videos have sources expanded
     };
   },
   computed: {
@@ -195,7 +539,7 @@ export default {
               accept: 'application/json',
               'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
               authorization:
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODZjZTE1YWU4ZjVlMGQyNTgxNDY5NWYiLCJleHAiOjE3ODM1MDIwODF9.b74MoL7JcwzcuGwYtkMtUPFRzYzOlG31zoiiq9OyXgw',
+                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODZkMDllYzMyMWNkNDZiZWFhMDU5MTQiLCJleHAiOjE3ODM1MTI0NzN9.IqCwYFs3Z6J38iMqE1EVAUl3-GcNChFDEvojlmVROao',
               origin: 'https://dev.zero1creatorstudio.com',
               referer: 'https://dev.zero1creatorstudio.com/',
               'user-agent':
@@ -251,7 +595,7 @@ export default {
         }
       } catch (error) {
         console.error('Error detecting YouTube trends:', error);
-        this.trendingVideos = this.getMockData(); // Fallback to mock data for demo
+        this.trendingVideos = []; // No fallback data
       } finally {
         this.loading = false;
       }
@@ -270,11 +614,96 @@ export default {
       }
     },
 
+    async performCrossPlatformAnalysis() {
+      this.crossPlatformLoading = true;
+      try {
+        console.log('🌐 Starting cross-platform analysis...');
+
+        const axios = (await import('axios')).default;
+        const response = await axios.post(
+          '/api/yt-trends/cross-platform-analysis',
+          {
+            videos: this.trendingVideos,
+          }
+        );
+
+        this.crossPlatformAnalysis = response.data;
+        this.showCrossPlatformResults = true;
+
+        // Update videos with cross-platform data
+        if (response.data.data && response.data.data.videos) {
+          this.trendingVideos = response.data.data.videos;
+        }
+
+        console.log(
+          '✅ Cross-platform analysis completed:',
+          this.crossPlatformAnalysis
+        );
+      } catch (error) {
+        console.error('❌ Error in cross-platform analysis:', error);
+        alert('Failed to perform cross-platform analysis. Please try again.');
+      } finally {
+        this.crossPlatformLoading = false;
+      }
+    },
+
     getScoreClass(score) {
       if (score >= 80) return 'viral';
       if (score >= 60) return 'trending';
       if (score >= 40) return 'moderate';
       return 'low';
+    },
+
+    getCrossPlatformClass(score) {
+      if (score >= 85) return 'extremely-viral';
+      if (score >= 70) return 'high-viral';
+      if (score >= 50) return 'moderate-viral';
+      if (score >= 30) return 'some-viral';
+      return 'low-viral';
+    },
+
+    getCrossPlatformViralStatus(score) {
+      if (score >= 85) return '🔥 Extremely Viral Across Platforms';
+      if (score >= 70) return '📈 High Cross-Platform Potential';
+      if (score >= 50) return '📊 Moderate Cross-Platform Activity';
+      if (score >= 30) return '📢 Some Cross-Platform Presence';
+      return '📱 Limited Cross-Platform Activity';
+    },
+
+    toggleSources(videoId) {
+      this.showingSources = {
+        ...this.showingSources,
+        [videoId]: !this.showingSources[videoId],
+      };
+    },
+
+    hasAnySources(analysis) {
+      if (!analysis) return false;
+      return (
+        analysis.twitter?.sources?.length > 0 ||
+        analysis.reddit?.sources?.length > 0 ||
+        analysis.googleNews?.sources?.length > 0
+      );
+    },
+
+    getTotalSourcesCount(analysis) {
+      if (!analysis) return 0;
+      return (
+        (analysis.twitter?.sources?.length || 0) +
+        (analysis.reddit?.sources?.length || 0) +
+        (analysis.googleNews?.sources?.length || 0)
+      );
+    },
+
+    getTopCrossPlatformVideos() {
+      return this.trendingVideos
+        .filter((video) => video.crossPlatformAnalysis)
+        .sort(
+          (a, b) =>
+            b.crossPlatformAnalysis.totalScore -
+            a.crossPlatformAnalysis.totalScore
+        )
+        .slice(0, 5);
     },
 
     formatNumber(num) {
@@ -848,5 +1277,374 @@ export default {
   .video-title {
     font-size: 0.85rem;
   }
+}
+
+/* Cross-Platform Analysis Styles */
+.secondary-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-left: 12px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.secondary-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.secondary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cross-platform-badge {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cross-platform-badge.extremely-viral {
+  background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+  color: white;
+}
+
+.cross-platform-badge.high-viral {
+  background: linear-gradient(135deg, #4ecdc4, #44a08d);
+  color: white;
+}
+
+.cross-platform-badge.moderate-viral {
+  background: linear-gradient(135deg, #45b7d1, #96c93d);
+  color: white;
+}
+
+.cross-platform-badge.some-viral {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+  color: white;
+}
+
+.cross-platform-badge.low-viral {
+  background: linear-gradient(135deg, #ffecd2, #fcb69f);
+  color: #333;
+}
+
+.platform-breakdown {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 9px;
+  opacity: 0.9;
+}
+
+.cross-platform-section {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin: 24px 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e5e5;
+}
+
+.cross-platform-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.cross-platform-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.close-btn {
+  background: #ff4757;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  background: #ff3838;
+  transform: scale(1.1);
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}
+
+.stat-card h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.stat-card p {
+  margin: 8px 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.top-cross-platform-videos h3 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.top-videos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 16px;
+}
+
+.top-video-card {
+  display: flex;
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.top-video-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+}
+
+.video-thumbnail-small {
+  width: 80px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.video-thumbnail-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-cross-platform-info {
+  flex: 1;
+}
+
+.video-cross-platform-info h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
+}
+
+.total-score {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2c5aa0;
+  margin-bottom: 8px;
+}
+
+.platform-scores {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.platform-scores span {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f8f9fa;
+  color: #333;
+  font-weight: 500;
+}
+
+.viral-potential {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e74c3c;
+  margin-bottom: 8px;
+}
+
+.recommendations {
+  font-size: 10px;
+  color: #666;
+}
+
+.recommendation {
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+  .top-videos-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-scores {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .secondary-btn {
+    margin-left: 0;
+    margin-top: 12px;
+  }
+}
+
+/* View Sources Styles */
+.view-sources-section {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.view-sources-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-sources-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.sources-details {
+  margin-top: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #e9ecef;
+}
+
+.platform-sources {
+  margin-bottom: 1.5rem;
+}
+
+.platform-sources:last-child {
+  margin-bottom: 0;
+}
+
+.platform-sources h4 {
+  margin: 0 0 0.8rem 0;
+  font-size: 1rem;
+  color: #2c3e50;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 0.3rem;
+}
+
+.source-item {
+  background: white;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-left: 4px solid #ddd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.source-item:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.twitter-source {
+  border-left-color: #1da1f2;
+}
+
+.reddit-source {
+  border-left-color: #ff4500;
+}
+
+.news-source {
+  border-left-color: #228b22;
+}
+
+.source-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+  gap: 1rem;
+}
+
+.source-link {
+  flex: 1;
+  color: #2c3e50;
+  text-decoration: none;
+  font-weight: 500;
+  line-height: 1.4;
+  font-size: 0.9rem;
+}
+
+.source-link:hover {
+  color: #3498db;
+  text-decoration: underline;
+}
+
+.source-verified {
+  background: #e8f5e8;
+  color: #27ae60;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.source-meta {
+  font-size: 0.8rem;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 </style>

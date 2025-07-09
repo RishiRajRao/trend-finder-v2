@@ -884,6 +884,721 @@ app.post('/api/v2/viral-news/export', async (req, res) => {
   }
 });
 
+// Cross-platform YouTube trend analysis endpoint
+app.post('/api/yt-trends/cross-platform-analysis', async (req, res) => {
+  try {
+    console.log('🔍 Starting cross-platform analysis for YouTube videos...');
+    const { videos } = req.body;
+
+    if (!videos || !Array.isArray(videos)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid video data provided',
+      });
+    }
+
+    // Analyze each video by searching for related content on other platforms
+    const analyzedVideos = await Promise.all(
+      videos.map(async (video, index) => {
+        console.log(
+          `🔍 Analyzing video ${index + 1}/${videos.length}: "${video.title}"`
+        );
+
+        const keywords = extractKeywords(video.title);
+        console.log(`🔑 Keywords extracted: ${keywords.join(', ')}`);
+
+        // Search for related content on each platform based on video keywords
+        const [twitterMatches, redditMatches, newsMatches] = await Promise.all([
+          trendTracker.searchTwitterForTopic(keywords),
+          trendTracker.searchRedditForTopic(keywords),
+          trendTracker.searchNewsForTopic(keywords),
+        ]);
+
+        const crossPlatformScore = await analyzeCrossPlatformTrend(
+          video,
+          twitterMatches,
+          redditMatches,
+          newsMatches
+        );
+
+        return {
+          ...video,
+          crossPlatformAnalysis: crossPlatformScore,
+        };
+      })
+    );
+
+    // Calculate summary statistics
+    const totalMatches = analyzedVideos.reduce((sum, video) => {
+      return (
+        sum +
+        video.crossPlatformAnalysis.twitter.matches +
+        video.crossPlatformAnalysis.reddit.matches +
+        video.crossPlatformAnalysis.googleNews.matches
+      );
+    }, 0);
+
+    res.json({
+      success: true,
+      data: {
+        videos: analyzedVideos,
+        analysis: {
+          totalVideos: videos.length,
+          totalCrossPlatformMatches: totalMatches,
+          highCrossPlatformScore: analyzedVideos.filter(
+            (v) => v.crossPlatformAnalysis.totalScore >= 70
+          ).length,
+          viralAcrossPlatforms: analyzedVideos.filter(
+            (v) => v.crossPlatformAnalysis.totalScore >= 85
+          ).length,
+          avgScore: Math.round(
+            analyzedVideos.reduce(
+              (sum, v) => sum + v.crossPlatformAnalysis.totalScore,
+              0
+            ) / videos.length
+          ),
+        },
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('❌ Error in cross-platform analysis:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to perform cross-platform analysis',
+      error: error.message,
+    });
+  }
+});
+
+// Cross-platform trend analysis function using viral news validation thresholds
+async function analyzeCrossPlatformTrend(
+  video,
+  twitterData,
+  redditData,
+  googleNewsData
+) {
+  const videoTitle = video.title.toLowerCase();
+  const videoKeywords = extractKeywords(videoTitle);
+
+  // Apply viral news validation thresholds (same as non-yt-trend)
+  const viralThresholds = {
+    minTweets: 10, // Minimum tweets for viral consideration
+    minTweetImpressions: 150, // Minimum average impressions
+    minRedditPosts: 1, // Minimum Reddit posts
+    minUpvoteRatio: 0.5, // Minimum upvote ratio
+    minRedditUpvotes: 30, // Minimum total upvotes for viral
+    minRedditEngagement: 5, // Minimum comments for engagement
+  };
+
+  // Twitter Analysis with validation
+  const twitterMatches = findPlatformMatches(
+    videoTitle,
+    videoKeywords,
+    twitterData,
+    'title'
+  );
+  const twitterScore = calculateValidatedTwitterScore(
+    twitterMatches,
+    viralThresholds
+  );
+
+  // Reddit Analysis with validation
+  const redditMatches = findPlatformMatches(
+    videoTitle,
+    videoKeywords,
+    redditData,
+    'title'
+  );
+  const redditScore = calculateValidatedRedditScore(
+    redditMatches,
+    viralThresholds
+  );
+
+  // Google News Analysis (same as before)
+  const googleNewsMatches = findPlatformMatches(
+    videoTitle,
+    videoKeywords,
+    googleNewsData,
+    'title'
+  );
+  const googleNewsScore = calculateGoogleNewsScore(
+    googleNewsMatches,
+    googleNewsData
+  );
+
+  // Apply viral validation logic
+  const isTwitterViral = twitterMatches.length >= viralThresholds.minTweets;
+  const totalRedditUpvotes = redditMatches.reduce(
+    (sum, r) => sum + (r.upvotes || 0),
+    0
+  );
+  const isRedditViral =
+    redditMatches.length >= viralThresholds.minRedditPosts &&
+    totalRedditUpvotes >= viralThresholds.minRedditUpvotes;
+
+  // Calculate weighted total score with viral validation
+  let totalScore = Math.round(
+    twitterScore * 0.35 + redditScore * 0.25 + googleNewsScore * 0.25
+  );
+
+  // Apply viral bonus if thresholds are met (same as non-yt-trend)
+  if (isTwitterViral && isRedditViral) {
+    totalScore += 15; // Cross-platform viral bonus
+  } else if (isTwitterViral || isRedditViral) {
+    totalScore += 8; // Single platform viral bonus
+  }
+
+  // Cap at 100
+  totalScore = Math.min(totalScore, 100);
+
+  return {
+    totalScore,
+    twitter: {
+      score: twitterScore,
+      weight: 35,
+      matches: twitterMatches.length,
+      isViral: isTwitterViral,
+      topMatches: twitterMatches.slice(0, 3).map((m) => ({
+        title: m.title || m.text,
+        score: m.score,
+        similarity: m.similarity,
+        url: m.url,
+        username: m.username,
+        retweets: m.retweets,
+        likes: m.likes,
+        fromRapidAPI: m.fromRapidAPI || false,
+      })),
+      sources: twitterMatches.slice(0, 5).map((m) => ({
+        title: m.title || m.text || 'Twitter Post',
+        url:
+          m.url ||
+          `https://twitter.com/search?q=${encodeURIComponent(
+            m.title || m.text || ''
+          )}`,
+        username: m.username || 'Unknown',
+        engagement: `${m.likes || 0} likes, ${m.retweets || 0} retweets`,
+        type: 'twitter',
+        verified: m.fromRapidAPI
+          ? 'Real Twitter Data (RapidAPI)'
+          : 'Twitter Trends',
+      })),
+    },
+    reddit: {
+      score: redditScore,
+      weight: 25,
+      matches: redditMatches.length,
+      isViral: isRedditViral,
+      totalUpvotes: totalRedditUpvotes,
+      topMatches: redditMatches.slice(0, 3).map((m) => ({
+        title: m.title,
+        upvotes: m.upvotes,
+        comments: m.comments,
+        similarity: m.similarity,
+        subreddit: m.subreddit,
+        url: m.url,
+      })),
+      sources: redditMatches.slice(0, 5).map((m) => ({
+        title: m.title || 'Reddit Post',
+        url:
+          m.url ||
+          `https://reddit.com/search?q=${encodeURIComponent(m.title || '')}`,
+        subreddit: m.subreddit || 'Unknown',
+        engagement: `${m.upvotes || 0} upvotes, ${m.comments || 0} comments`,
+        type: 'reddit',
+        verified: 'Real Reddit Data (JSON API)',
+      })),
+    },
+    googleNews: {
+      score: googleNewsScore,
+      weight: 25,
+      matches: googleNewsMatches.length,
+      topMatches: googleNewsMatches.slice(0, 3).map((m) => ({
+        title: m.title,
+        source: m.source,
+        similarity: m.similarity,
+        url: m.url,
+        publishedAt: m.publishedAt,
+      })),
+      sources: googleNewsMatches.slice(0, 5).map((m) => ({
+        title: m.title || 'News Article',
+        url:
+          m.url ||
+          `https://news.google.com/search?q=${encodeURIComponent(
+            m.title || ''
+          )}`,
+        source: m.source || 'Unknown Source',
+        publishedAt: m.publishedAt || new Date().toISOString(),
+        type: 'news',
+        verified:
+          m.api === 'GNews-Search'
+            ? 'Real News Data (GNews API)'
+            : 'News Search',
+      })),
+    },
+    analysis: {
+      keywords: videoKeywords,
+      crossPlatformReach: calculateCrossPlatformReach(
+        twitterMatches,
+        redditMatches,
+        googleNewsMatches
+      ),
+      viralPotential: categorizeViralPotential(totalScore),
+      recommendedActions: generateRecommendations(
+        totalScore,
+        twitterMatches,
+        redditMatches,
+        googleNewsMatches
+      ),
+    },
+  };
+}
+
+// Extract keywords from video title
+function extractKeywords(title) {
+  const stopWords = [
+    'the',
+    'a',
+    'an',
+    'and',
+    'or',
+    'but',
+    'in',
+    'on',
+    'at',
+    'to',
+    'for',
+    'of',
+    'with',
+    'by',
+    'is',
+    'are',
+    'was',
+    'were',
+    'be',
+    'been',
+    'being',
+    'have',
+    'has',
+    'had',
+    'do',
+    'does',
+    'did',
+    'will',
+    'would',
+    'could',
+    'should',
+  ];
+
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !stopWords.includes(word))
+    .slice(0, 10); // Top 10 keywords
+}
+
+// Find matches between video and platform content
+function findPlatformMatches(
+  videoTitle,
+  videoKeywords,
+  platformData,
+  titleField
+) {
+  const matches = [];
+
+  platformData.forEach((item) => {
+    const platformTitle = (item[titleField] || '').toLowerCase();
+    const similarity = calculateSimilarity(
+      videoTitle,
+      platformTitle,
+      videoKeywords
+    );
+
+    if (similarity > 0.3) {
+      // 30% similarity threshold
+      matches.push({
+        ...item,
+        similarity: similarity,
+      });
+    }
+  });
+
+  return matches.sort((a, b) => b.similarity - a.similarity);
+}
+
+// Calculate similarity score between two texts
+function calculateSimilarity(text1, text2, keywords) {
+  // Keyword overlap score
+  const keywordMatches = keywords.filter((keyword) =>
+    text2.includes(keyword)
+  ).length;
+  const keywordScore =
+    keywords.length > 0 ? keywordMatches / keywords.length : 0;
+
+  // Direct text overlap score
+  const words1 = text1.split(/\s+/);
+  const words2 = text2.split(/\s+/);
+  const commonWords = words1.filter(
+    (word) => words2.includes(word) && word.length > 2
+  ).length;
+  const textScore =
+    Math.max(words1.length, words2.length) > 0
+      ? commonWords / Math.max(words1.length, words2.length)
+      : 0;
+
+  // Combined score (weighted: 70% keywords, 30% text overlap)
+  return keywordScore * 0.7 + textScore * 0.3;
+}
+
+// Calculate Twitter score based on tweets and impressions
+function calculateTwitterScore(matches, allTwitterData) {
+  if (matches.length === 0) return 0;
+
+  let totalScore = 0;
+  let impressionFactor = 0;
+
+  matches.forEach((match) => {
+    // Base score from existing Twitter scoring
+    const baseScore = match.score || 0;
+
+    // Similarity bonus
+    const similarityBonus = match.similarity * 20;
+
+    // Impression estimation (based on trend position and viral keywords)
+    const estimatedImpressions = estimateTwitterImpressions(match);
+    const impressionScore = Math.min(estimatedImpressions / 10000, 25); // Max 25 points
+
+    totalScore += baseScore + similarityBonus + impressionScore;
+    impressionFactor += estimatedImpressions;
+  });
+
+  // Normalize by number of matches and total Twitter trends
+  const normalizedScore = totalScore / Math.max(matches.length, 1);
+  const reachFactor =
+    (matches.length / Math.max(allTwitterData.length, 1)) * 10;
+
+  return Math.min(Math.round(normalizedScore + reachFactor), 100);
+}
+
+// Calculate Reddit score based on comments and upvotes
+function calculateRedditScore(matches, allRedditData) {
+  if (matches.length === 0) return 0;
+
+  let totalScore = 0;
+  let engagementFactor = 0;
+
+  matches.forEach((match) => {
+    // Base score from upvotes
+    const upvoteScore = Math.min(Math.log10((match.upvotes || 0) + 1) * 5, 20);
+
+    // Comment engagement score
+    const commentScore = Math.min(
+      Math.log10((match.comments || 0) + 1) * 3,
+      15
+    );
+
+    // Engagement ratio bonus
+    const engagementRatio =
+      (match.comments || 0) / Math.max(match.upvotes || 0, 1);
+    const engagementBonus = Math.min(engagementRatio * 20, 10);
+
+    // Similarity bonus
+    const similarityBonus = match.similarity * 15;
+
+    totalScore +=
+      upvoteScore + commentScore + engagementBonus + similarityBonus;
+    engagementFactor += (match.upvotes || 0) + (match.comments || 0);
+  });
+
+  const normalizedScore = totalScore / Math.max(matches.length, 1);
+  const reachFactor = (matches.length / Math.max(allRedditData.length, 1)) * 5;
+
+  return Math.min(Math.round(normalizedScore + reachFactor), 100);
+}
+
+// New validated Twitter scoring function using viral news thresholds
+function calculateValidatedTwitterScore(matches, viralThresholds) {
+  if (matches.length === 0) return 0;
+
+  let score = 0;
+
+  // Apply viral news validation: minimum 10 tweets for viral consideration
+  if (matches.length < viralThresholds.minTweets) {
+    score = Math.min(matches.length * 3, 20); // Lower score for below threshold
+  } else {
+    // Base score with logarithmic scaling (like viral news detector)
+    score += Math.log10(matches.length + 1) * 15; // 0-30 points
+
+    // Quality score from match similarity
+    const avgSimilarity =
+      matches.reduce((sum, match) => sum + match.similarity, 0) /
+      matches.length;
+    score += avgSimilarity * 25; // Up to 25 points
+
+    // Engagement quality bonus with viral thresholds
+    let totalEngagement = 0;
+    let totalImpressions = 0;
+    let validTweets = 0;
+
+    matches.forEach((match) => {
+      const impressions = estimateTwitterImpressions(match);
+      const engagement =
+        (match.retweets || 0) + (match.likes || 0) + (match.replies || 0);
+
+      if (impressions >= viralThresholds.minTweetImpressions) {
+        totalImpressions += impressions;
+        totalEngagement += engagement;
+        validTweets++;
+      }
+    });
+
+    // Apply viral validation bonus
+    if (validTweets > 0 && totalImpressions > 0) {
+      const avgEngagementRate = totalEngagement / totalImpressions;
+      score += Math.min(avgEngagementRate * 500, 20); // Up to 20 points for high engagement
+    }
+
+    // Cross-platform viral bonus
+    if (matches.length >= viralThresholds.minTweets) {
+      score += 10; // Viral threshold bonus
+    }
+  }
+
+  return Math.min(Math.round(score), 100);
+}
+
+// New validated Reddit scoring function using viral news thresholds
+function calculateValidatedRedditScore(matches, viralThresholds) {
+  if (matches.length === 0) return 0;
+
+  let score = 0;
+  const totalUpvotes = matches.reduce(
+    (sum, match) => sum + (match.upvotes || 0),
+    0
+  );
+  const totalComments = matches.reduce(
+    (sum, match) => sum + (match.comments || 0),
+    0
+  );
+
+  // Apply viral news validation: minimum 1 post with 30+ upvotes
+  if (
+    matches.length < viralThresholds.minRedditPosts ||
+    totalUpvotes < viralThresholds.minRedditUpvotes
+  ) {
+    score = Math.min(matches.length * 5 + totalUpvotes * 0.5, 25); // Lower score for below threshold
+  } else {
+    // Base score with logarithmic scaling (like viral news detector)
+    score += Math.log10(matches.length + 1) * 8; // 0-16 points
+
+    // Upvote quality with logarithmic scale
+    score += Math.log10(totalUpvotes + 1) * 6; // 0-15 points
+
+    // Community engagement depth
+    const avgCommentsPerPost =
+      matches.length > 0 ? totalComments / matches.length : 0;
+    const engagementDepth = Math.min(avgCommentsPerPost / 10, 1) * 8; // 0-8 points
+    score += engagementDepth;
+
+    // Quality validation: check upvote ratio
+    let validPosts = 0;
+    matches.forEach((match) => {
+      const upvoteRatio = match.upvoteRatio || 0.5;
+      if (upvoteRatio >= viralThresholds.minUpvoteRatio) {
+        validPosts++;
+      }
+    });
+
+    // Quality bonus for good upvote ratios
+    if (validPosts > 0) {
+      score += (validPosts / matches.length) * 10; // Up to 10 points
+    }
+
+    // Cross-platform viral bonus
+    if (
+      matches.length >= viralThresholds.minRedditPosts &&
+      totalUpvotes >= viralThresholds.minRedditUpvotes
+    ) {
+      score += 12; // Viral threshold bonus
+    }
+  }
+
+  return Math.min(Math.round(score), 100);
+}
+
+// Calculate Google News score based on title and semantic matches across different media channels
+function calculateGoogleNewsScore(matches, allGoogleNewsData) {
+  if (matches.length === 0) return 0;
+
+  // Group matches by source to check for cross-media coverage
+  const sourceGroups = {};
+  matches.forEach((match) => {
+    const source = match.source || 'Unknown';
+    if (!sourceGroups[source]) {
+      sourceGroups[source] = [];
+    }
+    sourceGroups[source].push(match);
+  });
+
+  const uniqueSources = Object.keys(sourceGroups).length;
+  let totalScore = 0;
+
+  matches.forEach((match) => {
+    // Base news score
+    const baseScore = match.score || 0;
+
+    // Similarity bonus
+    const similarityBonus = match.similarity * 25;
+
+    // Source credibility bonus (based on predefined tier system)
+    const credibilityBonus = getSourceCredibilityScore(match.source);
+
+    totalScore += baseScore + similarityBonus + credibilityBonus;
+  });
+
+  // Multi-source coverage bonus (cross-media validation)
+  const crossMediaBonus = Math.min(uniqueSources * 5, 20); // Max 20 points for 4+ sources
+
+  // Semantic title matching bonus (if 4-5 different sources cover similar topic)
+  const semanticBonus = uniqueSources >= 4 ? 15 : uniqueSources >= 3 ? 10 : 0;
+
+  const normalizedScore = totalScore / Math.max(matches.length, 1);
+
+  return Math.min(
+    Math.round(normalizedScore + crossMediaBonus + semanticBonus),
+    100
+  );
+}
+
+// Estimate Twitter impressions based on trend characteristics
+function estimateTwitterImpressions(twitterTrend) {
+  let impressions = 1000; // Base impressions
+
+  // Viral keyword multipliers
+  const viralKeywords = [
+    'viral',
+    'trending',
+    'breaking',
+    'exclusive',
+    'shocking',
+  ];
+  const title = (twitterTrend.title || '').toLowerCase();
+
+  viralKeywords.forEach((keyword) => {
+    if (title.includes(keyword)) {
+      impressions *= 2;
+    }
+  });
+
+  // Score-based multiplier
+  if (twitterTrend.score > 30) impressions *= 3;
+  else if (twitterTrend.score > 20) impressions *= 2;
+  else if (twitterTrend.score > 10) impressions *= 1.5;
+
+  return Math.min(impressions, 1000000); // Cap at 1M impressions
+}
+
+// Get source credibility score for news outlets
+function getSourceCredibilityScore(source) {
+  const tier1Sources = [
+    'BBC',
+    'Reuters',
+    'AP News',
+    'Times of India',
+    'Hindu',
+    'Indian Express',
+  ];
+  const tier2Sources = [
+    'NDTV',
+    'Hindustan Times',
+    'Economic Times',
+    'News18',
+    'Zee News',
+  ];
+
+  const sourceLower = (source || '').toLowerCase();
+
+  if (tier1Sources.some((t1) => sourceLower.includes(t1.toLowerCase())))
+    return 15;
+  if (tier2Sources.some((t2) => sourceLower.includes(t2.toLowerCase())))
+    return 10;
+  return 5; // Default score for other sources
+}
+
+// Calculate cross-platform reach
+function calculateCrossPlatformReach(
+  twitterMatches,
+  redditMatches,
+  googleNewsMatches
+) {
+  const totalMatches =
+    twitterMatches.length + redditMatches.length + googleNewsMatches.length;
+
+  if (totalMatches === 0) return 'No Cross-Platform Presence';
+  if (totalMatches >= 15) return 'Viral Across All Platforms';
+  if (totalMatches >= 10) return 'High Cross-Platform Reach';
+  if (totalMatches >= 5) return 'Moderate Cross-Platform Reach';
+  return 'Limited Cross-Platform Presence';
+}
+
+// Categorize viral potential
+function categorizeViralPotential(score) {
+  if (score >= 85) return 'Extremely Viral';
+  if (score >= 70) return 'High Viral Potential';
+  if (score >= 50) return 'Moderate Viral Potential';
+  if (score >= 30) return 'Some Viral Potential';
+  return 'Low Viral Potential';
+}
+
+// Generate recommendations based on analysis
+function generateRecommendations(
+  totalScore,
+  twitterMatches,
+  redditMatches,
+  googleNewsMatches
+) {
+  const recommendations = [];
+
+  if (totalScore >= 70) {
+    recommendations.push(
+      '🔥 High viral potential detected! Consider promoting immediately.'
+    );
+  }
+
+  if (twitterMatches.length === 0) {
+    recommendations.push(
+      '📱 No Twitter presence found. Consider creating Twitter buzz.'
+    );
+  }
+
+  if (redditMatches.length === 0) {
+    recommendations.push(
+      '🔴 No Reddit engagement. Share in relevant subreddits.'
+    );
+  }
+
+  if (googleNewsMatches.length === 0) {
+    recommendations.push(
+      '📰 Limited news coverage. Consider reaching out to media outlets.'
+    );
+  }
+
+  if (googleNewsMatches.length >= 3) {
+    recommendations.push(
+      '📰 Strong news coverage detected! Leverage this momentum.'
+    );
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push(
+      '📊 Balanced cross-platform presence. Monitor and maintain engagement.'
+    );
+  }
+
+  return recommendations;
+}
+
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📊 Trend Finder API available at http://localhost:${PORT}`);
