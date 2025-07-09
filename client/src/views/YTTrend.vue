@@ -492,14 +492,26 @@
                       >
                         <div
                           v-if="
-                            video.crossPlatformAnalysis.googleNews?.sources
-                              ?.length > 0
+                            getFilteredNewsSources(
+                              video.crossPlatformAnalysis.googleNews?.sources ||
+                                []
+                            ).length > 0
                           "
                           class="platform-sources"
                         >
+                          <!-- Time Filter Notice for News -->
+                          <div class="news-time-filter">
+                            <span class="filter-info">
+                              📅 Showing only news from last 3 days for trend
+                              relevance
+                            </span>
+                          </div>
+
                           <div
-                            v-for="source in video.crossPlatformAnalysis
-                              .googleNews.sources"
+                            v-for="source in getFilteredNewsSources(
+                              video.crossPlatformAnalysis.googleNews?.sources ||
+                                []
+                            )"
                             :key="source.url"
                             class="source-item news-source"
                           >
@@ -523,7 +535,7 @@
                           </div>
                         </div>
                         <div v-else class="no-sources">
-                          No news sources found for this video
+                          No recent news sources found (last 3 days)
                         </div>
                       </div>
                     </div>
@@ -755,7 +767,8 @@ export default {
       return (
         analysis.twitter?.sources?.length > 0 ||
         analysis.reddit?.sources?.length > 0 ||
-        analysis.googleNews?.sources?.length > 0
+        this.getFilteredNewsSources(analysis.googleNews?.sources || []).length >
+          0
       );
     },
 
@@ -764,7 +777,7 @@ export default {
       return (
         (analysis.twitter?.sources?.length || 0) +
         (analysis.reddit?.sources?.length || 0) +
-        (analysis.googleNews?.sources?.length || 0)
+        this.getFilteredNewsSources(analysis.googleNews?.sources || []).length
       );
     },
 
@@ -787,10 +800,33 @@ export default {
         case 'reddit':
           return analysis.reddit?.sources?.length || 0;
         case 'news':
-          return analysis.googleNews?.sources?.length || 0;
+          return this.getFilteredNewsSources(analysis.googleNews?.sources || [])
+            .length;
         default:
           return 0;
       }
+    },
+
+    getFilteredNewsSources(sources) {
+      if (!sources || sources.length === 0) return [];
+
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+      return sources.filter((source) => {
+        if (!source.publishedAt) return false;
+
+        const publishedDate = new Date(source.publishedAt);
+        const isWithinThreeDays = publishedDate >= threeDaysAgo;
+
+        if (!isWithinThreeDays) {
+          console.log(
+            `🚫 Filtered out old news: "${source.title}" (${source.publishedAt})`
+          );
+        }
+
+        return isWithinThreeDays;
+      });
     },
 
     getTopCrossPlatformVideos() {
@@ -1905,6 +1941,22 @@ export default {
   border: 1px dashed #ddd;
 }
 
+/* News time filter notice */
+.news-time-filter {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-left: 4px solid #2196f3;
+  text-align: center;
+}
+
+.filter-info {
+  font-size: 12px;
+  color: #1565c0;
+  font-weight: 500;
+}
+
 /* Mobile responsiveness for tabs */
 @media (max-width: 768px) {
   .tab-navigation {
@@ -1918,6 +1970,10 @@ export default {
     padding: 8px 12px;
     font-size: 12px;
     flex-shrink: 0;
+  }
+
+  .filter-info {
+    font-size: 11px;
   }
 }
 </style>
