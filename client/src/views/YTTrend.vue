@@ -8,7 +8,7 @@
     </div>
 
     <div class="controls">
-      <div class="algorithm-info">
+      <!-- <div class="algorithm-info">
         <div class="algorithm-badge">
           <span class="badge-icon">🎯</span>
           <div class="badge-content">
@@ -19,7 +19,7 @@
             </p>
           </div>
         </div>
-      </div>
+      </div> -->
 
       <div class="action-buttons">
         <button @click="detectYTTrends" :disabled="loading" class="primary-btn">
@@ -126,28 +126,6 @@
                 :class="getScoreClass(video.viralScore)"
               >
                 Viral Score: {{ video.viralScore }}/100
-              </div>
-
-              <!-- Cross-Platform Analysis Badge -->
-              <div
-                v-if="video.crossPlatformAnalysis"
-                class="cross-platform-badge"
-                :class="
-                  getCrossPlatformClass(video.crossPlatformAnalysis.totalScore)
-                "
-              >
-                Cross-Platform: {{ video.crossPlatformAnalysis.totalScore }}/100
-                <div class="platform-breakdown">
-                  <span class="twitter-score"
-                    >📱 {{ video.crossPlatformAnalysis.twitter.score }}</span
-                  >
-                  <span class="reddit-score"
-                    >🔴 {{ video.crossPlatformAnalysis.reddit.score }}</span
-                  >
-                  <span class="news-score"
-                    >📰 {{ video.crossPlatformAnalysis.googleNews.score }}</span
-                  >
-                </div>
               </div>
             </div>
           </div>
@@ -1386,8 +1364,6 @@ export default {
   border-radius: 16px;
   padding: 24px;
   margin: 24px 0;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e5e5;
 }
 
 .cross-platform-header {
