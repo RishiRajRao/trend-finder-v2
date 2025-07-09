@@ -2882,9 +2882,14 @@ Focus on viral potential and trending topics. Only return high-confidence matche
   async searchTwitterForTopic(keywords) {
     try {
       console.log(`🐦 Searching Twitter for keywords: ${keywords.join(', ')}`);
+      console.log('📅 Filtering to last 3 days only...');
 
       const searchTerms = keywords.join(' ');
       let twitterData = [];
+
+      // Calculate 3 days ago for filtering
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
       // Use RapidAPI for real Twitter data (same as viral news detector)
       const rapidApiKey = process.env.RAPIDAPI_KEY;
@@ -2952,8 +2957,20 @@ Focus on viral potential and trending topics. Only return high-confidence matche
         }
       }
 
-      console.log(`✅ Found ${twitterData.length} Twitter matches`);
-      return twitterData;
+      // Filter all Twitter data to last 3 days regardless of source
+      const filteredByDate = twitterData.filter((tweet) => {
+        if (tweet.created_at) {
+          const tweetDate = new Date(tweet.created_at);
+          return tweetDate >= threeDaysAgo;
+        }
+        // If no date available, assume it's recent (for trend data)
+        return true;
+      });
+
+      console.log(
+        `✅ Found ${filteredByDate.length} Twitter matches (filtered to last 3 days)`
+      );
+      return filteredByDate;
     } catch (error) {
       console.error('❌ Error searching Twitter:', error.message);
       return [];
@@ -3074,16 +3091,33 @@ Focus on viral potential and trending topics. Only return high-confidence matche
       }
     }
 
-    return tweets;
+    // Filter tweets to last 3 days only
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    const recentTweets = tweets.filter((tweet) => {
+      const tweetDate = new Date(tweet.created_at);
+      return tweetDate >= threeDaysAgo;
+    });
+
+    console.log(
+      `📅 Filtered to ${recentTweets.length}/${tweets.length} tweets from last 3 days`
+    );
+    return recentTweets;
   }
 
   // Search Reddit for specific topics/keywords using same method as viral news detector
   async searchRedditForTopic(keywords) {
     try {
       console.log(`🔴 Searching Reddit for keywords: ${keywords.join(', ')}`);
+      console.log('📅 Filtering to last 3 days only...');
 
       const searchTerms = keywords.join(' ');
       const allPosts = [];
+
+      // Calculate 3 days ago for filtering
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
       try {
         // First: Search across ALL of Reddit using successful viral news detector method
@@ -3122,16 +3156,27 @@ Focus on viral potential and trending topics. Only return high-confidence matche
         console.log('⚠️ Reddit search failed:', error.message);
       }
 
-      // Remove duplicates and sort by upvotes
+      // Remove duplicates and filter by last 3 days
       const uniquePosts = allPosts.filter(
         (post, index, self) => index === self.findIndex((p) => p.id === post.id)
       );
 
-      const sortedPosts = uniquePosts.sort(
+      // Filter to last 3 days only
+      const recentPosts = uniquePosts.filter((post) => {
+        if (post.created) {
+          const postDate = new Date(post.created);
+          return postDate >= threeDaysAgo;
+        }
+        return false; // Exclude posts without valid dates
+      });
+
+      const sortedPosts = recentPosts.sort(
         (a, b) => (b.upvotes || 0) - (a.upvotes || 0)
       );
 
-      console.log(`✅ Found ${sortedPosts.length} Reddit matches`);
+      console.log(
+        `✅ Found ${sortedPosts.length} Reddit matches (filtered to last 3 days from ${uniquePosts.length} total)`
+      );
       return sortedPosts.slice(0, 10); // Return top 10 posts
     } catch (error) {
       console.error('❌ Error searching Reddit:', error.message);
@@ -3148,7 +3193,7 @@ Focus on viral potential and trending topics. Only return high-confidence matche
         params: {
           q: searchTerms,
           sort: 'new',
-          t: 'week',
+          t: 'week', // Still use week as Reddit doesn't have 3-day option, we'll filter after
           type: 'link',
           limit: 25,
         },
@@ -3204,7 +3249,7 @@ Focus on viral potential and trending topics. Only return high-confidence matche
           q: searchTerms,
           restrict_sr: 1,
           sort: 'new',
-          t: 'week',
+          t: 'week', // Use week but filter to 3 days after getting results
           limit: 15,
         },
         headers: {

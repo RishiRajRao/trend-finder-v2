@@ -370,6 +370,13 @@
                     </div>
                   </div>
 
+                  <!-- Time Filter Notice -->
+                  <div class="time-filter-notice">
+                    <div class="filter-badge">
+                      📅 Results limited to last 3 days for trend relevance
+                    </div>
+                  </div>
+
                   <!-- Twitter Sources -->
                   <div
                     v-if="
@@ -1725,5 +1732,22 @@ export default {
 .title-note small {
   color: #6c757d;
   font-style: italic;
+}
+
+/* Time Filter Notice Styles */
+.time-filter-notice {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.filter-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(23, 162, 184, 0.3);
 }
 </style>
