@@ -202,10 +202,16 @@
             <!-- Top section: Image and Title side by side -->
             <div class="video-header">
               <div class="video-thumbnail-small">
-                <img :src="video.thumbnail" :alt="video.title" />
+                <a :href="video.url" target="_blank" rel="noopener">
+                  <img :src="video.thumbnail" :alt="video.title" />
+                </a>
               </div>
               <div class="video-title-section">
-                <h4>{{ video.title.substring(0, 60) }}...</h4>
+                <h4>
+                  <a :href="video.url" target="_blank" rel="noopener">
+                    {{ video.title.substring(0, 60) }}...
+                  </a>
+                </h4>
               </div>
             </div>
 
@@ -1631,6 +1637,28 @@ export default {
   color: #333;
   line-height: 1.3;
   word-wrap: break-word;
+}
+
+.video-title-section h4 a {
+  color: #333;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.video-title-section h4 a:hover {
+  color: #ff0000;
+  text-decoration: underline;
+}
+
+.video-thumbnail-small a {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.video-thumbnail-small a:hover img {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
 }
 
 /* Video Content: All other content below */
