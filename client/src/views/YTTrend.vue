@@ -58,12 +58,12 @@
             <span v-else>📊 Export to Excel</span>
           </button>
         </div>
-        <div class="stats">
+        <!-- <div class="stats">
           <span class="stat">{{ viralVideos }} Viral Videos</span>
           <span class="stat">{{ highEngagement }} High Engagement</span>
           <span class="stat">{{ totalViews }} Total Views</span>
           <span class="stat">{{ totalVideos }} Videos Analyzed</span>
-        </div>
+        </div> -->
       </div>
 
       <div class="videos-grid">
@@ -199,11 +199,18 @@
             :key="video.id"
             class="top-video-card"
           >
-            <div class="video-thumbnail-small">
-              <img :src="video.thumbnail" :alt="video.title" />
+            <!-- Top section: Image and Title side by side -->
+            <div class="video-header">
+              <div class="video-thumbnail-small">
+                <img :src="video.thumbnail" :alt="video.title" />
+              </div>
+              <div class="video-title-section">
+                <h4>{{ video.title.substring(0, 60) }}...</h4>
+              </div>
             </div>
-            <div class="video-cross-platform-info">
-              <h4>{{ video.title.substring(0, 60) }}...</h4>
+
+            <!-- Bottom section: All other content -->
+            <div class="video-content">
               <div
                 class="cross-platform-scores"
                 v-if="video.crossPlatformAnalysis"
@@ -1524,12 +1531,13 @@ export default {
 
 .top-video-card {
   display: flex;
+  flex-direction: column;
   background: white;
   border: 1px solid #e5e5e5;
   border-radius: 12px;
-  padding: 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 .top-video-card:hover {
@@ -1537,12 +1545,20 @@ export default {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
 }
 
+/* Video Header: Image and Title side by side */
+.video-header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+}
+
 .video-thumbnail-small {
   width: 80px;
   height: 60px;
   border-radius: 8px;
   overflow: hidden;
-  margin-right: 16px;
   flex-shrink: 0;
 }
 
@@ -1552,16 +1568,24 @@ export default {
   object-fit: cover;
 }
 
-.video-cross-platform-info {
+.video-title-section {
   flex: 1;
+  min-width: 0;
 }
 
-.video-cross-platform-info h4 {
-  margin: 0 0 12px 0;
+.video-title-section h4 {
+  margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: #333;
   line-height: 1.3;
+  word-wrap: break-word;
+}
+
+/* Video Content: All other content below */
+.video-content {
+  padding: 0 16px 16px 16px;
+  border-top: 1px solid #f0f0f0;
 }
 
 .total-score {
