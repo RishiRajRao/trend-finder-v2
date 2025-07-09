@@ -836,8 +836,8 @@ export default {
           (a, b) =>
             b.crossPlatformAnalysis.totalScore -
             a.crossPlatformAnalysis.totalScore
-        )
-        .slice(0, 5);
+        );
+      // Removed .slice(0, 5) to show all analyzed videos
     },
 
     formatNumber(num) {
