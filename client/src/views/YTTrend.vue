@@ -121,12 +121,12 @@
               </div>
 
               <!-- Viral Score Badge -->
-              <div
+              <!-- <div
                 class="viral-score-badge"
                 :class="getScoreClass(video.viralScore)"
               >
                 Viral Score: {{ video.viralScore }}/100
-              </div>
+              </div> -->
             </div>
           </div>
         </div>
@@ -355,115 +355,195 @@
                     </div>
                   </div>
 
-                  <!-- Twitter Sources -->
-                  <div
-                    v-if="
-                      video.crossPlatformAnalysis.twitter?.sources?.length > 0
-                    "
-                    class="platform-sources"
-                  >
-                    <h4>
-                      📱 Twitter Sources ({{
-                        video.crossPlatformAnalysis.twitter.sources.length
-                      }})
-                    </h4>
-                    <div
-                      v-for="source in video.crossPlatformAnalysis.twitter
-                        .sources"
-                      :key="source.url"
-                      class="source-item twitter-source"
-                    >
-                      <div class="source-header">
-                        <a
-                          :href="source.url"
-                          target="_blank"
-                          class="source-link"
-                        >
-                          {{ source.title.substring(0, 80)
-                          }}{{ source.title.length > 80 ? '...' : '' }}
-                        </a>
-                        <span class="source-verified">{{
-                          source.verified
-                        }}</span>
-                      </div>
-                      <div class="source-meta">
-                        @{{ source.username }} • {{ source.engagement }}
-                      </div>
+                  <!-- Sources Tabs -->
+                  <div class="sources-tabs">
+                    <!-- Tab Navigation -->
+                    <div class="tab-navigation">
+                      <button
+                        @click="setActiveTab(video.id, 'twitter')"
+                        :class="{
+                          'tab-btn': true,
+                          active: getActiveTab(video.id) === 'twitter',
+                          disabled:
+                            getTabCount(
+                              video.crossPlatformAnalysis,
+                              'twitter'
+                            ) === 0,
+                        }"
+                        :disabled="
+                          getTabCount(
+                            video.crossPlatformAnalysis,
+                            'twitter'
+                          ) === 0
+                        "
+                      >
+                        📱 Twitter ({{
+                          getTabCount(video.crossPlatformAnalysis, 'twitter')
+                        }})
+                      </button>
+                      <button
+                        @click="setActiveTab(video.id, 'reddit')"
+                        :class="{
+                          'tab-btn': true,
+                          active: getActiveTab(video.id) === 'reddit',
+                          disabled:
+                            getTabCount(
+                              video.crossPlatformAnalysis,
+                              'reddit'
+                            ) === 0,
+                        }"
+                        :disabled="
+                          getTabCount(video.crossPlatformAnalysis, 'reddit') ===
+                          0
+                        "
+                      >
+                        🔴 Reddit ({{
+                          getTabCount(video.crossPlatformAnalysis, 'reddit')
+                        }})
+                      </button>
+                      <button
+                        @click="setActiveTab(video.id, 'news')"
+                        :class="{
+                          'tab-btn': true,
+                          active: getActiveTab(video.id) === 'news',
+                          disabled:
+                            getTabCount(video.crossPlatformAnalysis, 'news') ===
+                            0,
+                        }"
+                        :disabled="
+                          getTabCount(video.crossPlatformAnalysis, 'news') === 0
+                        "
+                      >
+                        📰 News ({{
+                          getTabCount(video.crossPlatformAnalysis, 'news')
+                        }})
+                      </button>
                     </div>
-                  </div>
 
-                  <!-- Reddit Sources -->
-                  <div
-                    v-if="
-                      video.crossPlatformAnalysis.reddit?.sources?.length > 0
-                    "
-                    class="platform-sources"
-                  >
-                    <h4>
-                      🔴 Reddit Sources ({{
-                        video.crossPlatformAnalysis.reddit.sources.length
-                      }})
-                    </h4>
-                    <div
-                      v-for="source in video.crossPlatformAnalysis.reddit
-                        .sources"
-                      :key="source.url"
-                      class="source-item reddit-source"
-                    >
-                      <div class="source-header">
-                        <a
-                          :href="source.url"
-                          target="_blank"
-                          class="source-link"
+                    <!-- Tab Content -->
+                    <div class="tab-content">
+                      <!-- Twitter Tab -->
+                      <div
+                        v-if="getActiveTab(video.id) === 'twitter'"
+                        class="tab-panel"
+                      >
+                        <div
+                          v-if="
+                            video.crossPlatformAnalysis.twitter?.sources
+                              ?.length > 0
+                          "
+                          class="platform-sources"
                         >
-                          {{ source.title.substring(0, 80)
-                          }}{{ source.title.length > 80 ? '...' : '' }}
-                        </a>
-                        <span class="source-verified">{{
-                          source.verified
-                        }}</span>
+                          <div
+                            v-for="source in video.crossPlatformAnalysis.twitter
+                              .sources"
+                            :key="source.url"
+                            class="source-item twitter-source"
+                          >
+                            <div class="source-header">
+                              <a
+                                :href="source.url"
+                                target="_blank"
+                                class="source-link"
+                              >
+                                {{ source.title.substring(0, 80)
+                                }}{{ source.title.length > 80 ? '...' : '' }}
+                              </a>
+                              <span class="source-verified">{{
+                                source.verified
+                              }}</span>
+                            </div>
+                            <div class="source-meta">
+                              @{{ source.username }} • {{ source.engagement }}
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="no-sources">
+                          No Twitter sources found for this video
+                        </div>
                       </div>
-                      <div class="source-meta">
-                        r/{{ source.subreddit }} • {{ source.engagement }}
-                      </div>
-                    </div>
-                  </div>
 
-                  <!-- News Sources -->
-                  <div
-                    v-if="
-                      video.crossPlatformAnalysis.googleNews?.sources?.length >
-                      0
-                    "
-                    class="platform-sources"
-                  >
-                    <h4>
-                      📰 News Sources ({{
-                        video.crossPlatformAnalysis.googleNews.sources.length
-                      }})
-                    </h4>
-                    <div
-                      v-for="source in video.crossPlatformAnalysis.googleNews
-                        .sources"
-                      :key="source.url"
-                      class="source-item news-source"
-                    >
-                      <div class="source-header">
-                        <a
-                          :href="source.url"
-                          target="_blank"
-                          class="source-link"
+                      <!-- Reddit Tab -->
+                      <div
+                        v-if="getActiveTab(video.id) === 'reddit'"
+                        class="tab-panel"
+                      >
+                        <div
+                          v-if="
+                            video.crossPlatformAnalysis.reddit?.sources
+                              ?.length > 0
+                          "
+                          class="platform-sources"
                         >
-                          {{ source.title.substring(0, 80)
-                          }}{{ source.title.length > 80 ? '...' : '' }}
-                        </a>
-                        <span class="source-verified">{{
-                          source.verified
-                        }}</span>
+                          <div
+                            v-for="source in video.crossPlatformAnalysis.reddit
+                              .sources"
+                            :key="source.url"
+                            class="source-item reddit-source"
+                          >
+                            <div class="source-header">
+                              <a
+                                :href="source.url"
+                                target="_blank"
+                                class="source-link"
+                              >
+                                {{ source.title.substring(0, 80)
+                                }}{{ source.title.length > 80 ? '...' : '' }}
+                              </a>
+                              <span class="source-verified">{{
+                                source.verified
+                              }}</span>
+                            </div>
+                            <div class="source-meta">
+                              r/{{ source.subreddit }} • {{ source.engagement }}
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="no-sources">
+                          No Reddit sources found for this video
+                        </div>
                       </div>
-                      <div class="source-meta">
-                        {{ source.source }} •
-                        {{ formatTime(source.publishedAt) }}
+
+                      <!-- News Tab -->
+                      <div
+                        v-if="getActiveTab(video.id) === 'news'"
+                        class="tab-panel"
+                      >
+                        <div
+                          v-if="
+                            video.crossPlatformAnalysis.googleNews?.sources
+                              ?.length > 0
+                          "
+                          class="platform-sources"
+                        >
+                          <div
+                            v-for="source in video.crossPlatformAnalysis
+                              .googleNews.sources"
+                            :key="source.url"
+                            class="source-item news-source"
+                          >
+                            <div class="source-header">
+                              <a
+                                :href="source.url"
+                                target="_blank"
+                                class="source-link"
+                              >
+                                {{ source.title.substring(0, 80)
+                                }}{{ source.title.length > 80 ? '...' : '' }}
+                              </a>
+                              <span class="source-verified">{{
+                                source.verified
+                              }}</span>
+                            </div>
+                            <div class="source-meta">
+                              {{ source.source }} •
+                              {{ formatTime(source.publishedAt) }}
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="no-sources">
+                          No news sources found for this video
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -501,6 +581,7 @@ export default {
       crossPlatformAnalysis: null,
       showCrossPlatformResults: false,
       showingSources: {}, // Track which videos have sources expanded
+      activeSourceTabs: {}, // Track active tab for each video
     };
   },
   computed: {
@@ -704,6 +785,31 @@ export default {
         (analysis.reddit?.sources?.length || 0) +
         (analysis.googleNews?.sources?.length || 0)
       );
+    },
+
+    setActiveTab(videoId, tabName) {
+      this.activeSourceTabs = {
+        ...this.activeSourceTabs,
+        [videoId]: tabName,
+      };
+    },
+
+    getActiveTab(videoId) {
+      return this.activeSourceTabs[videoId] || 'twitter';
+    },
+
+    getTabCount(analysis, platform) {
+      if (!analysis) return 0;
+      switch (platform) {
+        case 'twitter':
+          return analysis.twitter?.sources?.length || 0;
+        case 'reddit':
+          return analysis.reddit?.sources?.length || 0;
+        case 'news':
+          return analysis.googleNews?.sources?.length || 0;
+        default:
+          return 0;
+      }
     },
 
     getTopCrossPlatformVideos() {
@@ -1725,5 +1831,95 @@ export default {
   font-size: 0.8rem;
   font-weight: 500;
   box-shadow: 0 2px 4px rgba(23, 162, 184, 0.3);
+}
+
+/* Tab Styles */
+.sources-tabs {
+  margin-top: 16px;
+}
+
+.tab-navigation {
+  display: flex;
+  border-bottom: 2px solid #e5e5e5;
+  margin-bottom: 16px;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s ease;
+  border-radius: 6px 6px 0 0;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.tab-btn:hover:not(.disabled) {
+  color: #333;
+  background: #f8f9fa;
+}
+
+.tab-btn.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background: #f8f9fa;
+}
+
+.tab-btn.disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tab-content {
+  min-height: 200px;
+}
+
+.tab-panel {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.no-sources {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 40px 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #ddd;
+}
+
+/* Mobile responsiveness for tabs */
+@media (max-width: 768px) {
+  .tab-navigation {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+
+  .tab-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
 }
 </style>
