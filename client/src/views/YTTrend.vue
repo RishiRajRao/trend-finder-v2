@@ -344,6 +344,32 @@
                   "
                   class="sources-details"
                 >
+                  <!-- Semantic Title Info -->
+                  <div
+                    v-if="
+                      video.semanticTitle && video.semanticTitle !== video.title
+                    "
+                    class="semantic-title-info"
+                  >
+                    <h4>🤖 AI-Generated Search Title</h4>
+                    <div class="semantic-title-comparison">
+                      <div class="original-title">
+                        <strong>Original:</strong>
+                        {{ video.title.substring(0, 100)
+                        }}{{ video.title.length > 100 ? '...' : '' }}
+                      </div>
+                      <div class="semantic-title">
+                        <strong>Semantic:</strong> {{ video.semanticTitle }}
+                      </div>
+                      <div class="title-note">
+                        <small
+                          >🎯 AI cleaned the title for better cross-platform
+                          searching</small
+                        >
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Twitter Sources -->
                   <div
                     v-if="
@@ -1646,5 +1672,58 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* Semantic Title Styles */
+.semantic-title-info {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #dee2e6;
+  border-left: 4px solid #6f42c1;
+}
+
+.semantic-title-info h4 {
+  margin: 0 0 0.8rem 0;
+  font-size: 1rem;
+  color: #6f42c1;
+  font-weight: 600;
+}
+
+.semantic-title-comparison {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.original-title,
+.semantic-title {
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.original-title {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+}
+
+.semantic-title {
+  background: #d1ecf1;
+  border: 1px solid #bee5eb;
+  color: #0c5460;
+}
+
+.title-note {
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.title-note small {
+  color: #6c757d;
+  font-style: italic;
 }
 </style>

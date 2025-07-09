@@ -3,10 +3,24 @@ const cors = require('cors');
 const TrendTracker = require('./trendTracker');
 const ViralNewsDetectorV3 = require('./viralNewsDetector');
 const XLSX = require('xlsx');
+const OpenAI = require('openai');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Initialize OpenAI client for semantic analysis
+const openaiClient =
+  process.env.OPENAI_API_KEY &&
+  process.env.OPENAI_API_KEY !== 'your_openai_api_key_here'
+    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    : null;
+
+console.log(
+  `🤖 OpenAI Client for semantic analysis: ${
+    openaiClient ? 'Enabled' : 'Disabled'
+  }`
+);
 
 // Initialize trend tracker and viral news detector
 const trendTracker = new TrendTracker();
@@ -884,6 +898,170 @@ app.post('/api/v2/viral-news/export', async (req, res) => {
   }
 });
 
+/**
+ * 🤖 Generate semantic title using OpenAI for better cross-platform searching
+ */
+async function generateSemanticTitle(video) {
+  if (!openaiClient) {
+    console.log('⚠️ OpenAI not available, using original title');
+    return video.title;
+  }
+
+  try {
+    console.log(`🤖 Generating semantic title for: "${video.title}"`);
+
+    const prompt = `Analyze this YouTube video and create a clean, searchable title that captures the core topic for cross-platform searching:
+
+Original Title: "${video.title}"
+Description: "${video.description || 'No description'}"
+Channel: "${video.channelTitle || 'Unknown'}"
+
+Requirements:
+1. Create a clean, meaningful title (3-8 words)
+2. Remove clickbait elements, caps, and excessive punctuation
+3. Focus on the actual topic/subject matter
+4. Make it suitable for searching Twitter, Reddit, and news
+5. Keep key people, events, or topics mentioned
+6. Avoid words like "SHOCKING", "VIRAL", "MUST WATCH", etc.
+
+Examples:
+"ELON MUSK SHOCKING TWITTER ANNOUNCEMENT!!!" → "Elon Musk Twitter announcement"
+"You WON'T BELIEVE What Taylor Swift Said!" → "Taylor Swift statement"
+"BREAKING: iPhone 15 Problems Exposed!" → "iPhone 15 issues"
+
+Return ONLY the clean semantic title, no explanation.`;
+
+    const completion = await openaiClient.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are an expert at creating clean, searchable titles from clickbait YouTube titles. You understand what makes content discoverable across different platforms.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      max_tokens: 50,
+      temperature: 0.3,
+    });
+
+    const semanticTitle = completion.choices[0].message.content
+      .trim()
+      .replace(/^["']|["']$/g, '') // Remove quotes
+      .trim();
+
+    if (
+      semanticTitle &&
+      semanticTitle.length > 3 &&
+      semanticTitle.length < 100
+    ) {
+      console.log(`✅ Generated semantic title: "${semanticTitle}"`);
+      return semanticTitle;
+    } else {
+      console.log('⚠️ Invalid semantic title generated, using original');
+      return video.title;
+    }
+  } catch (error) {
+    console.log('⚠️ Semantic title generation failed:', error.message);
+    return video.title;
+  }
+}
+
+/**
+ * 🤖 Validate search results using OpenAI to ensure relevance
+ */
+async function validateResultRelevance(semanticTitle, results, platform) {
+  if (!openaiClient || !results.length) {
+    return results; // Return all results if OpenAI not available or no results
+  }
+
+  try {
+    console.log(
+      `🤖 Validating ${results.length} ${platform} results for relevance...`
+    );
+
+    // Prepare results for validation (limit to top 10 for efficiency)
+    const resultsToValidate = results.slice(0, 10);
+    const resultTexts = resultsToValidate
+      .map((result, index) => {
+        const text =
+          platform === 'twitter'
+            ? result.title || result.text || ''
+            : platform === 'reddit'
+            ? result.title
+            : result.title;
+        return `${index + 1}. ${text.substring(0, 150)}`;
+      })
+      .join('\n');
+
+    const prompt = `Analyze which of these ${platform} results are ACTUALLY related to the topic "${semanticTitle}":
+
+Topic: "${semanticTitle}"
+
+${platform.toUpperCase()} Results:
+${resultTexts}
+
+Requirements:
+1. Only include results that are DIRECTLY related to the topic
+2. Exclude spam, unrelated content, or generic posts
+3. Look for specific mentions of people, events, or topics from the semantic title
+4. Be strict - better to have fewer relevant results than many irrelevant ones
+
+Return the numbers (1-${
+      resultsToValidate.length
+    }) of RELEVANT results, separated by commas.
+If none are relevant, return "none".
+Example: "1,3,5" or "none"`;
+
+    const completion = await openaiClient.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert content curator who can identify truly relevant ${platform} content. You are very strict about relevance.`,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      max_tokens: 50,
+      temperature: 0.1,
+    });
+
+    const relevantIndices = completion.choices[0].message.content
+      .trim()
+      .toLowerCase();
+
+    if (relevantIndices === 'none') {
+      console.log(`❌ No relevant ${platform} results found after validation`);
+      return [];
+    }
+
+    // Parse the indices and return relevant results
+    const indices = relevantIndices
+      .split(',')
+      .map((i) => parseInt(i.trim()) - 1) // Convert to 0-based index
+      .filter((i) => i >= 0 && i < resultsToValidate.length);
+
+    const validatedResults = indices.map((i) => ({
+      ...resultsToValidate[i],
+      aiValidated: true,
+    }));
+
+    console.log(
+      `✅ Validated ${validatedResults.length}/${resultsToValidate.length} ${platform} results as relevant`
+    );
+    return validatedResults;
+  } catch (error) {
+    console.log(`⚠️ ${platform} result validation failed:`, error.message);
+    return results; // Return original results if validation fails
+  }
+}
+
 // Cross-platform YouTube trend analysis endpoint
 app.post('/api/yt-trends/cross-platform-analysis', async (req, res) => {
   try {
@@ -904,25 +1082,49 @@ app.post('/api/yt-trends/cross-platform-analysis', async (req, res) => {
           `🔍 Analyzing video ${index + 1}/${videos.length}: "${video.title}"`
         );
 
-        const keywords = extractKeywords(video.title);
-        console.log(`🔑 Keywords extracted: ${keywords.join(', ')}`);
+        // Step 1: Generate semantic title using OpenAI
+        const semanticTitle = await generateSemanticTitle(video);
+        console.log(`🎯 Using semantic title: "${semanticTitle}"`);
 
-        // Search for related content on each platform based on video keywords
+        const keywords = extractKeywords(semanticTitle);
+        console.log(
+          `🔑 Keywords extracted from semantic title: ${keywords.join(', ')}`
+        );
+
+        // Step 2: Search for related content using semantic title
+        const [rawTwitterMatches, rawRedditMatches, rawNewsMatches] =
+          await Promise.all([
+            trendTracker.searchTwitterForTopic(keywords),
+            trendTracker.searchRedditForTopic(keywords),
+            trendTracker.searchNewsForTopic(keywords),
+          ]);
+
+        console.log(
+          `📊 Raw results - Twitter: ${rawTwitterMatches.length}, Reddit: ${rawRedditMatches.length}, News: ${rawNewsMatches.length}`
+        );
+
+        // Step 3: Validate results using OpenAI to ensure relevance
         const [twitterMatches, redditMatches, newsMatches] = await Promise.all([
-          trendTracker.searchTwitterForTopic(keywords),
-          trendTracker.searchRedditForTopic(keywords),
-          trendTracker.searchNewsForTopic(keywords),
+          validateResultRelevance(semanticTitle, rawTwitterMatches, 'twitter'),
+          validateResultRelevance(semanticTitle, rawRedditMatches, 'reddit'),
+          validateResultRelevance(semanticTitle, rawNewsMatches, 'news'),
         ]);
+
+        console.log(
+          `✅ Validated results - Twitter: ${twitterMatches.length}, Reddit: ${redditMatches.length}, News: ${newsMatches.length}`
+        );
 
         const crossPlatformScore = await analyzeCrossPlatformTrend(
           video,
           twitterMatches,
           redditMatches,
-          newsMatches
+          newsMatches,
+          semanticTitle
         );
 
         return {
           ...video,
+          semanticTitle, // Include semantic title in response
           crossPlatformAnalysis: crossPlatformScore,
         };
       })
@@ -976,10 +1178,17 @@ async function analyzeCrossPlatformTrend(
   video,
   twitterData,
   redditData,
-  googleNewsData
+  googleNewsData,
+  semanticTitle = null
 ) {
-  const videoTitle = video.title.toLowerCase();
-  const videoKeywords = extractKeywords(videoTitle);
+  // Use semantic title if provided, otherwise fallback to original title
+  const searchTitle = (semanticTitle || video.title).toLowerCase();
+  const videoKeywords = extractKeywords(searchTitle);
+
+  console.log(`🔍 Analyzing cross-platform trend using: "${searchTitle}"`);
+  if (semanticTitle) {
+    console.log(`🤖 Semantic title provided by OpenAI: "${semanticTitle}"`);
+  }
 
   // Apply viral news validation thresholds (same as non-yt-trend)
   const viralThresholds = {
@@ -993,7 +1202,7 @@ async function analyzeCrossPlatformTrend(
 
   // Twitter Analysis with validation
   const twitterMatches = findPlatformMatches(
-    videoTitle,
+    searchTitle,
     videoKeywords,
     twitterData,
     'title'
@@ -1005,7 +1214,7 @@ async function analyzeCrossPlatformTrend(
 
   // Reddit Analysis with validation
   const redditMatches = findPlatformMatches(
-    videoTitle,
+    searchTitle,
     videoKeywords,
     redditData,
     'title'
@@ -1017,7 +1226,7 @@ async function analyzeCrossPlatformTrend(
 
   // Google News Analysis (same as before)
   const googleNewsMatches = findPlatformMatches(
-    videoTitle,
+    searchTitle,
     videoKeywords,
     googleNewsData,
     'title'
